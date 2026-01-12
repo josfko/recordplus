@@ -11,6 +11,13 @@ import { CaseDetailView } from "./components/caseDetail.js";
 import { CaseFormView } from "./components/caseForm.js";
 import { ConfigurationView } from "./components/configuration.js";
 import { AdminPanelView } from "./components/adminPanel.js";
+import { FacturacionAragView } from "./components/facturacionArag.js";
+import { FacturacionListView } from "./components/facturacionList.js";
+import { ParticularesView } from "./components/particulares.js";
+import { ParticularesListView } from "./components/particularesList.js";
+import { TurnoOficioView } from "./components/turnoOficio.js";
+import { TurnoListView } from "./components/turnoList.js";
+import { EstadisticasView } from "./components/estadisticas.js";
 
 // Toast notification helper
 export function showToast(message, type = "info") {
@@ -86,61 +93,45 @@ document.addEventListener("DOMContentLoaded", () => {
     await view.render();
   });
 
-  // Placeholder routes for future modules
+  // Facturación ARAG list view
   router.register("/invoicing", async () => {
-    mainContent.innerHTML = `
-      <div class="header">
-        <div class="header-title">
-          <h1>Facturación ARAG</h1>
-          <p>Módulo en desarrollo</p>
-        </div>
-      </div>
-      <div class="empty-state">
-        <p>Este módulo estará disponible próximamente.</p>
-      </div>
-    `;
+    const view = new FacturacionListView(mainContent);
+    await view.render();
   });
 
+  // Facturación ARAG for specific case
+  router.register("/invoicing/:id", async (params) => {
+    const view = new FacturacionAragView(mainContent, params.id);
+    await view.render();
+  });
+
+  // Particulares list view
   router.register("/particulares", async () => {
-    mainContent.innerHTML = `
-      <div class="header">
-        <div class="header-title">
-          <h1>Particulares</h1>
-          <p>Módulo en desarrollo</p>
-        </div>
-      </div>
-      <div class="empty-state">
-        <p>Este módulo estará disponible próximamente.</p>
-      </div>
-    `;
+    const view = new ParticularesListView(mainContent);
+    await view.render();
   });
 
+  // Particulares for specific case
+  router.register("/particulares/:id", async (params) => {
+    const view = new ParticularesView(mainContent, params.id);
+    await view.render();
+  });
+
+  // Turno de Oficio list view
   router.register("/turno", async () => {
-    mainContent.innerHTML = `
-      <div class="header">
-        <div class="header-title">
-          <h1>Turno de Oficio</h1>
-          <p>Módulo en desarrollo</p>
-        </div>
-      </div>
-      <div class="empty-state">
-        <p>Este módulo estará disponible próximamente.</p>
-      </div>
-    `;
+    const view = new TurnoListView(mainContent);
+    await view.render();
+  });
+
+  // Turno de Oficio detail view
+  router.register("/turno/:id", async (params) => {
+    const view = new TurnoOficioView(mainContent, params.id);
+    await view.render();
   });
 
   router.register("/stats", async () => {
-    mainContent.innerHTML = `
-      <div class="header">
-        <div class="header-title">
-          <h1>Estadísticas</h1>
-          <p>Módulo en desarrollo</p>
-        </div>
-      </div>
-      <div class="empty-state">
-        <p>Este módulo estará disponible próximamente.</p>
-      </div>
-    `;
+    const view = new EstadisticasView(mainContent);
+    await view.render();
   });
 
   // Handle initial route

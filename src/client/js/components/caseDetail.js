@@ -177,6 +177,7 @@ export class CaseDetailView {
     if (c.state !== "ARCHIVADO") {
       // ARAG specific actions
       if (c.type === "ARAG") {
+        buttons += `<a href="#/invoicing/${c.id}" class="btn btn-secondary">Facturación</a>`;
         buttons += `<button class="btn btn-secondary" id="btn-minuta">Generar Minuta</button>`;
         if (c.state === "ABIERTO") {
           buttons += `<button class="btn btn-secondary" id="btn-judicial">Pasar a Judicial</button>`;
@@ -188,7 +189,12 @@ export class CaseDetailView {
 
       // PARTICULAR specific actions
       if (c.type === "PARTICULAR") {
-        buttons += `<button class="btn btn-secondary" id="btn-encargo">Generar Hoja de Encargo</button>`;
+        buttons += `<a href="#/particulares/${c.id}" class="btn btn-secondary">Hoja de Encargo</a>`;
+      }
+
+      // TURNO_OFICIO specific actions
+      if (c.type === "TURNO_OFICIO") {
+        buttons += `<a href="#/turno/${c.id}" class="btn btn-secondary">Gestionar Expediente</a>`;
       }
 
       // Archive button for all types
@@ -230,11 +236,6 @@ export class CaseDetailView {
       .querySelector("#btn-suplido")
       ?.addEventListener("click", () =>
         showToast("Generación de suplidos próximamente", "info")
-      );
-    this.container
-      .querySelector("#btn-encargo")
-      ?.addEventListener("click", () =>
-        showToast("Generación de hojas de encargo próximamente", "info")
       );
   }
 
