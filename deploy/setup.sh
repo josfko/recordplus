@@ -85,7 +85,7 @@ fi
 echo -e "${YELLOW}Step 10: Configure PM2${NC}"
 cd $APP_DIR
 sudo -u $APP_USER pm2 delete recordplus 2>/dev/null || true
-sudo -u $APP_USER pm2 start ecosystem.config.js
+sudo -u $APP_USER pm2 start ecosystem.config.cjs
 sudo -u $APP_USER pm2 save
 
 # Setup PM2 to start on boot
