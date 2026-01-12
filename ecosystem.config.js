@@ -1,9 +1,10 @@
 // PM2 Configuration
-export default {
+module.exports = {
   apps: [
     {
-      name: "legal-api",
+      name: "recordplus",
       script: "src/server/index.js",
+      cwd: "/home/appuser/recordplus",
       instances: 1,
       autorestart: true,
       watch: false,
@@ -13,6 +14,12 @@ export default {
         PORT: 3000,
         DB_PATH: "/home/appuser/data/legal-cases.db",
         DOCUMENTS_PATH: "/home/appuser/data/documents",
+      },
+      env_development: {
+        NODE_ENV: "development",
+        PORT: 3000,
+        DB_PATH: "./data/legal-cases.db",
+        DOCUMENTS_PATH: "./data/documents",
       },
     },
   ],
