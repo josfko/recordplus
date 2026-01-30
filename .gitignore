@@ -41,3 +41,9 @@ dist/
 
 # Test coverage
 coverage/
+
+# Test databases
+src/server/__tests__/*.db
+src/server/__tests__/*.db-wal
+src/server/__tests__/*.db-shm
+src/server/__tests__/*.db-journal
