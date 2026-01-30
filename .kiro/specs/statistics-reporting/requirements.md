@@ -13,6 +13,6 @@ This spec will be developed after invoicing-arag is approved.
 1. Monthly case entry/archive counts
 2. Year-over-year comparisons (1 year, 2 years back)
 3. Filtering by case type
-4. Export to Excel format
+4. Export to Excel or excel compatible format
 5. Export to PDF format
 6. Dashboard statistics cards
