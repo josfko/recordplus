@@ -7,6 +7,14 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 
+# Generated documents (PDFs)
+data/documents/*
+!data/documents/.gitkeep
+
+# Digital certificates (sensitive)
+data/certificates/*
+!data/certificates/.gitkeep
+
 # Backups
 backups/
 
