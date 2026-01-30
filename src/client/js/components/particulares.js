@@ -5,6 +5,7 @@
 
 import { api } from "../api.js";
 import { showToast, formatDate } from "../app.js";
+import { HojaEncargoModal } from "./hojaEncargoModal.js";
 
 export class ParticularesView {
   constructor(container, caseId) {
@@ -12,6 +13,7 @@ export class ParticularesView {
     this.caseId = caseId;
     this.caseData = null;
     this.config = null;
+    this.history = { documents: [], emails: [] };
   }
 
   async render() {
@@ -23,6 +25,14 @@ export class ParticularesView {
       ]);
       this.caseData = caseResult;
       this.config = configResult.data || configResult;
+
+      // Load document history
+      try {
+        const historyResult = await api.getCaseHistory(this.caseId);
+        this.history = historyResult.data || { documents: [], emails: [] };
+      } catch (e) {
+        this.history = { documents: [], emails: [] };
+      }
     } catch (error) {
       this.container.innerHTML = `
         <div class="error-state">
@@ -348,15 +358,43 @@ export class ParticularesView {
 
   renderTimeline(c) {
     const events = [];
+    const history = this.history || { documents: [], emails: [] };
 
-    // Recent draft save
-    events.push({
-      date: new Date(),
-      title: "Borrador Hoja de Encargo guardado",
-      user: "Sistema",
-      type: "draft",
-      color: "gray",
-    });
+    // Add document history events
+    if (history.documents && history.documents.length > 0) {
+      history.documents.forEach((doc) => {
+        events.push({
+          date: doc.createdAt,
+          title: doc.signed ? "Hoja de Encargo Firmada" : "Hoja de Encargo Generada",
+          type: "document",
+          color: doc.signed ? "green" : "indigo",
+          documents: [{
+            id: doc.id,
+            name: doc.filename,
+            signed: doc.signed,
+          }],
+        });
+      });
+    }
+
+    // Add email history events
+    if (history.emails && history.emails.length > 0) {
+      history.emails.forEach((email) => {
+        const isError = email.status === "ERROR";
+        events.push({
+          date: email.sentAt,
+          title: isError ? "Error al Enviar Email" : "Hoja de Encargo Enviada",
+          type: "email",
+          color: isError ? "red" : "green",
+          emailDetails: {
+            to: email.toAddress,
+            subject: email.subject,
+            status: email.status,
+            error: email.errorMessage,
+          },
+        });
+      });
+    }
 
     // Case creation
     events.push({
@@ -365,17 +403,15 @@ export class ParticularesView {
       user: null,
       type: "created",
       color: "indigo",
-      tags: ["Particular", "Reclamación"],
+      tags: ["Particular"],
     });
 
-    // Pending signature
-    events.push({
-      date: null,
-      title: "Firma del Cliente",
-      user: null,
-      type: "pending",
-      color: "outline",
-    });
+    // Sort events by date descending (most recent first)
+    events.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (events.length === 0) {
+      return '<p class="timeline-empty">No hay eventos registrados</p>';
+    }
 
     return events
       .map(
@@ -397,6 +433,42 @@ export class ParticularesView {
               ${event.tags
                 .map((tag) => `<span class="timeline-tag">${tag}</span>`)
                 .join("")}
+            </div>
+          `
+              : ""
+          }
+          ${
+            event.documents
+              ? `
+            <div class="timeline-documents">
+              ${event.documents.map((doc) => `
+                <div class="timeline-doc timeline-doc-clickable" data-doc-id="${doc.id}">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  <span class="timeline-doc-link">${doc.name}</span>
+                  ${doc.signed ? '<span class="badge badge-signed">Firmado</span>' : ""}
+                </div>
+              `).join("")}
+            </div>
+          `
+              : ""
+          }
+          ${
+            event.emailDetails
+              ? `
+            <div class="timeline-email">
+              <div class="timeline-email-row">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span class="timeline-email-to">${event.emailDetails.to}</span>
+              </div>
+              ${event.emailDetails.status === "ERROR" ? `
+                <span class="timeline-email-error">${event.emailDetails.error || "Error desconocido"}</span>
+              ` : ""}
             </div>
           `
               : ""
@@ -493,33 +565,22 @@ export class ParticularesView {
       .getElementById("provision")
       ?.addEventListener("input", () => this.updateTotals());
 
-    // Export PDF
-    document.getElementById("btn-export-pdf")?.addEventListener("click", () => {
-      showToast("Generando PDF...", "info");
-      setTimeout(() => {
-        showToast("PDF generado correctamente", "success");
-      }, 1500);
-    });
-
-    // Digital signature
-    document.getElementById("btn-sign")?.addEventListener("click", () => {
-      showToast("Preparando firma digital...", "info");
-      setTimeout(() => {
-        showToast("Documento firmado correctamente", "success");
-      }, 1500);
-    });
-
-    // Send to client
-    document.getElementById("btn-send")?.addEventListener("click", async () => {
-      if (!this.caseData.clientEmail) {
-        showToast("El cliente no tiene email configurado", "error");
+    // Open Hoja de Encargo modal (Export PDF, Sign, Send buttons)
+    const openModal = () => {
+      if (this.caseData.state === "ARCHIVADO") {
+        showToast("No se pueden generar documentos en expedientes archivados", "error");
         return;
       }
-      showToast("Enviando Hoja de Encargo...", "info");
-      setTimeout(() => {
-        showToast(`Enviado a ${this.caseData.clientEmail}`, "success");
-      }, 1500);
-    });
+      const modal = new HojaEncargoModal(this.caseData, this.config, async () => {
+        // Refresh the view when modal closes
+        await this.render();
+      });
+      modal.open();
+    };
+
+    document.getElementById("btn-export-pdf")?.addEventListener("click", openModal);
+    document.getElementById("btn-sign")?.addEventListener("click", openModal);
+    document.getElementById("btn-send")?.addEventListener("click", openModal);
 
     // Archive case
     document
@@ -577,6 +638,44 @@ export class ParticularesView {
           });
         } catch (error) {
           console.error("Error saving provision:", error);
+        }
+      });
+
+    // Document download clicks
+    document.querySelectorAll(".timeline-doc-clickable").forEach((el) => {
+      el.addEventListener("click", () => {
+        const docId = el.dataset.docId;
+        if (!docId) return;
+        const downloadUrl = api.getDocumentDownloadUrl(docId);
+        window.open(downloadUrl, "_blank");
+      });
+    });
+
+    // Refresh history button
+    document
+      .querySelector(".particulares-history .btn-icon")
+      ?.addEventListener("click", async () => {
+        try {
+          const historyResult = await api.getCaseHistory(this.caseId);
+          this.history = historyResult.data || { documents: [], emails: [] };
+
+          // Re-render timeline
+          const timelineContainer = document.querySelector(".timeline");
+          if (timelineContainer) {
+            timelineContainer.innerHTML = this.renderTimeline(this.caseData);
+            // Re-attach document click listeners
+            document.querySelectorAll(".timeline-doc-clickable").forEach((el) => {
+              el.addEventListener("click", () => {
+                const docId = el.dataset.docId;
+                if (!docId) return;
+                const downloadUrl = api.getDocumentDownloadUrl(docId);
+                window.open(downloadUrl, "_blank");
+              });
+            });
+          }
+          showToast("Historial actualizado", "success");
+        } catch (error) {
+          showToast(`Error: ${error.message}`, "error");
         }
       });
   }

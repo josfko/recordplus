@@ -86,18 +86,22 @@ class Router {
 
   /**
    * Match route and extract parameters
-   * @param {string} path - Current path
+   * @param {string} path - Current path (may include query string)
    * @returns {{ handler: Function|null, params: Object }}
    */
   matchRoute(path) {
+    // Strip query string for route matching
+    const queryIndex = path.indexOf("?");
+    const pathWithoutQuery = queryIndex === -1 ? path : path.slice(0, queryIndex);
+
     // Try exact match first
-    if (this.routes.has(path)) {
-      return { handler: this.routes.get(path), params: {} };
+    if (this.routes.has(pathWithoutQuery)) {
+      return { handler: this.routes.get(pathWithoutQuery), params: {} };
     }
 
     // Try pattern matching for dynamic routes
     for (const [pattern, handler] of this.routes) {
-      const params = this.extractParams(pattern, path);
+      const params = this.extractParams(pattern, pathWithoutQuery);
       if (params !== null) {
         return { handler, params };
       }

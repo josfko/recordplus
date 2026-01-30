@@ -8,11 +8,12 @@ import { router } from "../router.js";
 import { showToast } from "../app.js";
 
 export class CaseFormView {
-  constructor(container, caseId = null) {
+  constructor(container, caseId = null, defaultType = "ARAG") {
     this.container = container;
     this.caseId = caseId;
     this.caseData = null;
     this.isEdit = !!caseId;
+    this.defaultType = defaultType;
   }
 
   async render() {
@@ -54,21 +55,21 @@ export class CaseFormView {
             <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 8px;">Tipo de Expediente *</label>
             <div class="filter-tabs" style="width: fit-content;">
               <button type="button" class="filter-tab type-tab ${
-                !c.type || c.type === "ARAG" ? "active" : ""
+                (c.type || this.defaultType) === "ARAG" ? "active" : ""
               }" data-type="ARAG" ${this.isEdit ? "disabled" : ""}>ARAG</button>
               <button type="button" class="filter-tab type-tab ${
-                c.type === "PARTICULAR" ? "active" : ""
+                (c.type || this.defaultType) === "PARTICULAR" ? "active" : ""
               }" data-type="PARTICULAR" ${
       this.isEdit ? "disabled" : ""
     }>Particular</button>
               <button type="button" class="filter-tab type-tab ${
-                c.type === "TURNO_OFICIO" ? "active" : ""
+                (c.type || this.defaultType) === "TURNO_OFICIO" ? "active" : ""
               }" data-type="TURNO_OFICIO" ${
       this.isEdit ? "disabled" : ""
     }>Turno Oficio</button>
             </div>
             <input type="hidden" name="type" id="case-type" value="${
-              c.type || "ARAG"
+              c.type || this.defaultType
             }">
           </div>
 
@@ -84,7 +85,7 @@ export class CaseFormView {
 
           <!-- ARAG Reference (ARAG only) -->
           <div id="arag-field" style="margin-bottom: 20px; ${
-            c.type && c.type !== "ARAG" ? "display: none;" : ""
+            (c.type || this.defaultType) !== "ARAG" ? "display: none;" : ""
           }">
             <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Referencia ARAG * <span style="font-size: 10px; color: var(--text-placeholder);">(DJ00xxxxxx)</span></label>
             <input type="text" name="aragReference" id="arag-reference" value="${
@@ -97,7 +98,7 @@ export class CaseFormView {
 
           <!-- Designation (Turno only) -->
           <div id="turno-field" style="margin-bottom: 20px; ${
-            c.type !== "TURNO_OFICIO" ? "display: none;" : ""
+            (c.type || this.defaultType) !== "TURNO_OFICIO" ? "display: none;" : ""
           }">
             <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Número de Designación *</label>
             <input type="text" name="designation" id="designation" value="${

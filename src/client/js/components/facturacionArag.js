@@ -15,7 +15,7 @@ export class FacturacionAragView {
   }
 
   async render() {
-    // Load case data and config
+    // Load case data, config, and history
     try {
       const [caseResult, configResult] = await Promise.all([
         api.getCase(this.caseId),
@@ -24,6 +24,14 @@ export class FacturacionAragView {
       // API returns case directly, config has .data wrapper
       this.caseData = caseResult;
       this.config = configResult.data || configResult;
+
+      // Load history
+      try {
+        const historyResult = await api.getCaseHistory(this.caseId);
+        this.history = historyResult.data || { documents: [], emails: [] };
+      } catch (e) {
+        this.history = { documents: [], emails: [] };
+      }
     } catch (error) {
       this.container.innerHTML = `
         <div class="error-state">
@@ -165,7 +173,7 @@ export class FacturacionAragView {
                 ${
                   c.judicialDate
                     ? `<p class="form-hint">Pasado a judicial el ${formatDate(
-                        c.judicialDate
+                        c.judicialDate,
                       )}</p>`
                     : ""
                 }
@@ -233,20 +241,20 @@ export class FacturacionAragView {
                   <div class="minuta-row">
                     <span class="minuta-label">Honorarios Base</span>
                     <span class="minuta-value mono">${this.formatCurrency(
-                      baseRate
+                      baseRate,
                     )}</span>
                   </div>
                   <div class="minuta-row">
                     <span class="minuta-label">IVA (${vatRate}%)</span>
                     <span class="minuta-value mono">${this.formatCurrency(
-                      vatAmount
+                      vatAmount,
                     )}</span>
                   </div>
                   <div class="divider"></div>
                   <div class="minuta-row minuta-total">
                     <span class="minuta-label-total">Total a Facturar</span>
                     <span class="minuta-value-total mono">${this.formatCurrency(
-                      totalAmount
+                      totalAmount,
                     )}</span>
                   </div>
                 </div>
@@ -344,7 +352,7 @@ export class FacturacionAragView {
                     <label class="form-label form-label-right">Importe Calc.</label>
                     <div class="amount-display">
                       <span class="mono" id="suplido-amount">${this.formatCurrency(
-                        mileageAmount
+                        mileageAmount,
                       )}</span>
                     </div>
                   </div>
@@ -391,36 +399,67 @@ export class FacturacionAragView {
 
   renderTimeline(c) {
     const events = [];
+    const history = this.history || { documents: [], emails: [] };
 
-    // Add events based on case data
+    // Add document history events
+    if (history.documents && history.documents.length > 0) {
+      history.documents.forEach((doc) => {
+        const isMinuta = doc.documentType === "minuta";
+        const isSuplido = doc.documentType === "suplido";
+
+        events.push({
+          date: doc.createdAt,
+          title: isMinuta
+            ? "Minuta Generada"
+            : isSuplido
+              ? "Suplido Generado"
+              : "Documento Generado",
+          type: "document",
+          color: doc.signed ? "green" : "indigo",
+          documents: [
+            {
+              id: doc.id,
+              name: doc.filename,
+              type: "file",
+              link: true,
+              signed: doc.signed,
+            },
+          ],
+        });
+      });
+    }
+
+    // Add email history events
+    if (history.emails && history.emails.length > 0) {
+      history.emails.forEach((email) => {
+        const isError = email.status === "ERROR";
+        events.push({
+          date: email.sentAt,
+          title: isError ? "Error al Enviar Email" : "Email Enviado",
+          type: "email",
+          color: isError ? "red" : "green",
+          emailDetails: {
+            to: email.toAddress,
+            subject: email.subject,
+            status: email.status,
+            error: email.errorMessage,
+          },
+        });
+      });
+    }
+
+    // Add state change events
     if (c.state === "JUDICIAL" && c.judicialDate) {
       events.push({
         date: c.judicialDate,
         title: `Cambio de estado a <span class="text-yellow">Judicial</span>`,
         user: "Admin",
         type: "status",
-        color: "indigo",
+        color: "yellow",
       });
     }
 
-    // Placeholder for generated documents (would come from a documents table)
-    if (c.state === "JUDICIAL") {
-      events.push({
-        date: c.judicialDate || c.entryDate,
-        title: "Minuta Generada y Enviada",
-        user: null,
-        type: "document",
-        color: "green",
-        documents: [
-          {
-            name: `${c.aragReference || c.internalReference} - MINUTA`,
-            type: "email",
-          },
-          { name: "Minuta_ARAG.pdf", type: "file", link: true },
-        ],
-      });
-    }
-
+    // Add case creation event
     events.push({
       date: c.entryDate,
       title: "Expediente Creado",
@@ -429,21 +468,22 @@ export class FacturacionAragView {
       color: "gray",
     });
 
+    // Sort events by date descending (most recent first)
+    events.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (events.length === 0) {
+      return '<p class="timeline-empty">No hay eventos registrados</p>';
+    }
+
     return events
       .map(
         (event) => `
       <div class="timeline-item">
         <div class="timeline-dot timeline-dot-${event.color}"></div>
         <div class="timeline-content">
-          <span class="timeline-date mono">${this.formatTimelineDate(
-            event.date
-          )}</span>
+          <span class="timeline-date mono">${this.formatTimelineDate(event.date)}</span>
           <p class="timeline-title">${event.title}</p>
-          ${
-            event.user
-              ? `<span class="timeline-user">Usuario: ${event.user}</span>`
-              : ""
-          }
+          ${event.user ? `<span class="timeline-user">Usuario: ${event.user}</span>` : ""}
           ${
             event.documents
               ? `
@@ -451,28 +491,47 @@ export class FacturacionAragView {
               ${event.documents
                 .map(
                   (doc) => `
-                <div class="timeline-doc">
+                <div class="timeline-doc ${doc.link ? "timeline-doc-clickable" : ""}" ${doc.link ? `data-doc-id="${doc.id}"` : ""}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    ${
-                      doc.type === "email"
-                        ? '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'
-                        : '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'
-                    }
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
                   </svg>
-                  <span class="${doc.link ? "timeline-doc-link" : ""}">${
-                    doc.name
-                  }</span>
+                  <span class="${doc.link ? "timeline-doc-link" : ""}">${doc.name}</span>
+                  ${doc.signed ? '<span class="badge badge-signed">Firmado</span>' : ""}
                 </div>
-              `
+              `,
                 )
                 .join("")}
             </div>
           `
               : ""
           }
+          ${
+            event.emailDetails
+              ? `
+            <div class="timeline-email">
+              <div class="timeline-email-row">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span class="timeline-email-to">${event.emailDetails.to}</span>
+              </div>
+              <span class="timeline-email-subject">${event.emailDetails.subject}</span>
+              ${
+                event.emailDetails.status === "ERROR"
+                  ? `
+                <span class="timeline-email-error">${event.emailDetails.error || "Error desconocido"}</span>
+              `
+                  : ""
+              }
+            </div>
+          `
+              : ""
+          }
         </div>
       </div>
-    `
+    `,
       )
       .join("");
   }
@@ -555,35 +614,103 @@ export class FacturacionAragView {
     document
       .getElementById("btn-generate-minuta")
       ?.addEventListener("click", async () => {
-        showToast("Generando minuta ARAG...", "info");
-        // TODO: Implement document generation
-        setTimeout(() => {
-          showToast("Minuta generada y enviada correctamente", "success");
-        }, 1500);
+        const btn = document.getElementById("btn-generate-minuta");
+        btn.disabled = true;
+        btn.innerHTML = `
+          <svg class="spinner" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          Generando...
+        `;
+
+        try {
+          showToast("Generando minuta ARAG...", "info");
+          const result = await api.generateMinuta(this.caseId);
+
+          if (result.success) {
+            const emailStatus = result.data.steps.find(
+              (s) => s.step === "email",
+            );
+            if (emailStatus?.status === "completed") {
+              showToast("Minuta generada y enviada correctamente", "success");
+            } else if (emailStatus?.status === "skipped") {
+              showToast(
+                "Minuta generada. SMTP no configurado - email no enviado.",
+                "warning",
+              );
+            } else {
+              showToast("Minuta generada correctamente", "success");
+            }
+            // Refresh to show updated history
+            await this.render();
+          }
+        } catch (error) {
+          showToast(`Error: ${error.message}`, "error");
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 2L11 13"/>
+              <path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+            </svg>
+            Generar y Enviar
+          `;
+        }
       });
 
     // Generate Suplido
     document
       .getElementById("btn-generate-suplido")
       ?.addEventListener("click", async () => {
-        const district = document.getElementById("suplido-district").value;
-        if (!district) {
+        const districtSelect = document.getElementById("suplido-district");
+        const districtValue = districtSelect.value;
+        if (!districtValue) {
           showToast("Selecciona un partido judicial", "error");
           return;
         }
-        showToast("Generando suplido...", "info");
-        // TODO: Implement document generation
-        setTimeout(() => {
-          showToast("Suplido generado correctamente", "success");
-        }, 1500);
+
+        // Map select value to proper district name
+        const districtMap = {
+          torrox: "Torrox",
+          "velez-malaga": "Vélez-Málaga",
+          torremolinos: "Torremolinos",
+          fuengirola: "Fuengirola",
+          marbella: "Marbella",
+          estepona: "Estepona",
+          antequera: "Antequera",
+        };
+        const district = districtMap[districtValue] || districtValue;
+
+        const btn = document.getElementById("btn-generate-suplido");
+        btn.disabled = true;
+        btn.textContent = "Generando...";
+
+        try {
+          showToast("Generando suplido...", "info");
+          const result = await api.generateSuplido(this.caseId, district);
+
+          if (result.success) {
+            showToast(
+              `Suplido generado: ${this.formatCurrency(result.data.amount)}`,
+              "success",
+            );
+            // Refresh to show updated history
+            await this.render();
+          }
+        } catch (error) {
+          showToast(`Error: ${error.message}`, "error");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Generar Suplido";
+        }
       });
 
     // District change - update amount
     document
       .getElementById("suplido-district")
       ?.addEventListener("change", (e) => {
-        const district = e.target.value;
-        const districtKey = `mileage_${district.replace(/-/g, "_")}`;
+        const districtValue = e.target.value;
+        const districtKey = `mileage_${districtValue.replace(/-/g, "_")}`;
         const amount = parseFloat(this.config[districtKey]) || 0;
         document.getElementById("suplido-amount").textContent =
           this.formatCurrency(amount);
@@ -601,7 +728,7 @@ export class FacturacionAragView {
 
         if (
           !confirm(
-            "¿Estás seguro de archivar este expediente? Esta acción no se puede deshacer."
+            "¿Estás seguro de archivar este expediente? Esta acción no se puede deshacer.",
           )
         ) {
           return;
@@ -629,6 +756,54 @@ export class FacturacionAragView {
           await api.updateCase(this.caseId, { observations: e.target.value });
         } catch (error) {
           console.error("Error saving observations:", error);
+        }
+      });
+
+    // Document download clicks
+    document.querySelectorAll(".timeline-doc-clickable").forEach((el) => {
+      el.addEventListener("click", async () => {
+        const docId = el.dataset.docId;
+        if (!docId) return;
+
+        try {
+          showToast("Descargando documento...", "info");
+          await api.downloadDocument(docId);
+        } catch (error) {
+          showToast(`Error al descargar: ${error.message}`, "error");
+        }
+      });
+    });
+
+    // Refresh history button
+    document
+      .querySelector(".facturacion-history .btn-icon")
+      ?.addEventListener("click", async () => {
+        try {
+          const historyResult = await api.getCaseHistory(this.caseId);
+          this.history = historyResult.data || { documents: [], emails: [] };
+
+          // Re-render timeline
+          const timelineContainer = document.querySelector(".timeline");
+          if (timelineContainer) {
+            timelineContainer.innerHTML = this.renderTimeline(this.caseData);
+            // Re-attach document click listeners
+            document
+              .querySelectorAll(".timeline-doc-clickable")
+              .forEach((el) => {
+                el.addEventListener("click", async () => {
+                  const docId = el.dataset.docId;
+                  if (!docId) return;
+                  try {
+                    await api.downloadDocument(docId);
+                  } catch (error) {
+                    showToast(`Error al descargar: ${error.message}`, "error");
+                  }
+                });
+              });
+          }
+          showToast("Historial actualizado", "success");
+        } catch (error) {
+          showToast(`Error: ${error.message}`, "error");
         }
       });
   }

@@ -69,7 +69,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   router.register("/cases/new", async () => {
-    const view = new CaseFormView(mainContent);
+    const queryParams = router.getQueryParams();
+    const defaultType = queryParams.get("type") || "ARAG";
+    const view = new CaseFormView(mainContent, null, defaultType);
     await view.render();
   });
 

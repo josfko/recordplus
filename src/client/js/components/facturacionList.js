@@ -40,6 +40,14 @@ export class FacturacionListView {
             <h1>Facturación ARAG</h1>
             <p>Gestión de minutas y suplidos para expedientes ARAG</p>
           </div>
+          <div class="header-actions">
+            <a href="#/cases/new?type=ARAG" class="btn btn-primary">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 1v12M1 7h12"/>
+              </svg>
+              Nuevo Expediente
+            </a>
+          </div>
         </div>
 
         ${
@@ -96,7 +104,7 @@ export class FacturacionListView {
             </div>
             <h3>No hay expedientes ARAG activos</h3>
             <p>Los expedientes ARAG aparecerán aquí cuando se creen.</p>
-            <a href="#/cases/new" class="btn btn-primary">Nuevo Expediente</a>
+            <a href="#/cases/new?type=ARAG" class="btn btn-primary">Nuevo Expediente</a>
           </div>
         `
             : ""
