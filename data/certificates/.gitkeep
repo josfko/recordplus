@@ -1,0 +1,2 @@
+# This directory stores digital signature certificates (.p12 files)
+# IMPORTANT: Do not commit actual certificate files to version control
