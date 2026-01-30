@@ -14,6 +14,16 @@ export function validateAragExternalReference(ref) {
 }
 
 /**
+ * Validates Particular internal reference format (IY-YY-NNN)
+ * @param {string} ref - Reference to validate
+ * @returns {boolean} True if valid format
+ */
+export function validateParticularReference(ref) {
+  if (typeof ref !== "string") return false;
+  return /^IY-\d{2}-\d{3}$/.test(ref);
+}
+
+/**
  * Get the next counter value atomically
  * @param {string} type - Counter type (e.g., 'ARAG', 'PARTICULAR_2026')
  * @returns {number} Next counter value
@@ -119,6 +129,7 @@ export function resetCounter(type) {
 
 export default {
   validateAragExternalReference,
+  validateParticularReference,
   generateAragReference,
   generateParticularReference,
   getNextCounter,

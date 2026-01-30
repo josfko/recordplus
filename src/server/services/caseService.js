@@ -167,7 +167,8 @@ export function create(data) {
 
   // Generate internal reference based on type
   let internalReference = null;
-  if (data.type === CASE_TYPES.ARAG) {
+  if (data.type === CASE_TYPES.ARAG || data.type === CASE_TYPES.TURNO_OFICIO) {
+    // ARAG and TURNO_OFICIO share the same IY sequence (IY + 6 digits)
     internalReference = generateAragReference();
   } else if (data.type === CASE_TYPES.PARTICULAR) {
     const year = data.entryDate
@@ -175,7 +176,6 @@ export function create(data) {
       : new Date().getFullYear();
     internalReference = generateParticularReference(year);
   }
-  // TURNO_OFICIO doesn't get an internal reference
 
   const entryDate = data.entryDate || new Date().toISOString().split("T")[0];
 
@@ -359,6 +359,42 @@ export function archive(id, closureDate) {
 }
 
 /**
+ * Finalize a Turno de Oficio case (transition from ABIERTO to FINALIZADO)
+ * Note: Uses JUDICIAL state in database to represent FINALIZADO for Turno cases
+ * @param {number} id - Case ID
+ * @returns {Object} Updated case
+ */
+export function finalizeTurno(id) {
+  const existing = getById(id);
+  if (!existing) {
+    throw new NotFoundError("Expediente no encontrado");
+  }
+
+  // Only Turno de Oficio cases can be finalized this way
+  if (existing.type !== CASE_TYPES.TURNO_OFICIO) {
+    throw new ValidationError(
+      "Solo los expedientes de Turno de Oficio pueden finalizarse de esta manera"
+    );
+  }
+
+  // Can only finalize from ABIERTO state
+  if (existing.state === CASE_STATES.JUDICIAL) {
+    throw new ValidationError("El expediente ya está finalizado");
+  }
+
+  if (existing.state === CASE_STATES.ARCHIVADO) {
+    throw new ValidationError("No se puede modificar un expediente archivado");
+  }
+
+  execute(
+    `UPDATE cases SET state = ?, updated_at = datetime('now') WHERE id = ?`,
+    [CASE_STATES.JUDICIAL, id]
+  );
+
+  return getById(id);
+}
+
+/**
  * Transition an ARAG case to judicial state
  * @param {number} id - Case ID
  * @param {string} judicialDate - Transition date (YYYY-MM-DD)
@@ -459,6 +495,7 @@ export default {
   list,
   update,
   archive,
+  finalizeTurno,
   transitionToJudicial,
   deleteCase,
   CASE_TYPES,

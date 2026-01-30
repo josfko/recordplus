@@ -15,6 +15,18 @@ export const DEFAULT_CONFIG = {
   mileage_marbella: "0.00",
   mileage_estepona: "0.00",
   mileage_antequera: "0.00",
+  // SMTP configuration
+  smtp_host: "",
+  smtp_port: "587",
+  smtp_secure: "false",
+  smtp_user: "",
+  smtp_password: "",
+  smtp_from: "",
+  // Document storage
+  documents_path: "./data/documents",
+  // Certificate configuration
+  certificate_path: "",
+  certificate_password: "",
 };
 
 // Configuration keys that must be positive numbers
@@ -141,7 +153,7 @@ export function update(updates) {
     if (DEFAULT_CONFIG[key] === undefined) {
       throw new ConfigValidationError(
         `Clave de configuración desconocida: ${key}`,
-        key
+        key,
       );
     }
 
@@ -150,7 +162,7 @@ export function update(updates) {
       if (!isPositiveNumber(value)) {
         throw new ConfigValidationError(
           `El valor de ${key} debe ser un número positivo`,
-          key
+          key,
         );
       }
     }
@@ -160,7 +172,7 @@ export function update(updates) {
       if (!isValidEmail(value)) {
         throw new ConfigValidationError(
           `El formato de email para ${key} es inválido`,
-          key
+          key,
         );
       }
     }
@@ -176,7 +188,7 @@ export function update(updates) {
     if (existing) {
       execute(
         "UPDATE configuration SET value = ?, updated_at = datetime('now') WHERE key = ?",
-        [stringValue, key]
+        [stringValue, key],
       );
     } else {
       execute("INSERT INTO configuration (key, value) VALUES (?, ?)", [

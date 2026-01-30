@@ -7,6 +7,9 @@ import dashboardRouter from "./routes/dashboard.js";
 import configRouter from "./routes/config.js";
 import exportImportRouter from "./routes/exportImport.js";
 import adminRouter from "./routes/admin.js";
+import aragRouter from "./routes/arag.js";
+import particularesRouter from "./routes/particulares.js";
+import turnoOficioRouter from "./routes/turnoOficio.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,6 +27,12 @@ app.use(express.static(clientPath));
 
 // API Routes
 app.use("/api/cases", casesRouter);
+app.use("/api/cases", aragRouter); // ARAG-specific case routes (minuta, suplido, history)
+app.use("/api/cases", particularesRouter); // Particulares-specific routes (hoja-encargo)
+app.use("/api/turno", turnoOficioRouter); // Turno de Oficio routes (finalize, upload)
+app.use("/api/documents", aragRouter); // Document download routes
+app.use("/api/email", aragRouter); // Email test routes
+app.use("/api/mileage-rates", aragRouter); // Mileage rates
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/config", configRouter);
 app.use("/api", exportImportRouter);
