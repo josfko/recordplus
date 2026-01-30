@@ -31,7 +31,7 @@ class ApiClient {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const error = new Error(
-          errorData.error?.message || `HTTP ${response.status}`
+          errorData.error?.message || `HTTP ${response.status}`,
         );
         error.code = errorData.error?.code || "HTTP_ERROR";
         error.field = errorData.error?.field;
@@ -199,7 +199,7 @@ class ApiClient {
    */
   async getTableContents(tableName, limit = 50, offset = 0) {
     return this.request(
-      `/admin/table/${tableName}?limit=${limit}&offset=${offset}`
+      `/admin/table/${tableName}?limit=${limit}&offset=${offset}`,
     );
   }
 
@@ -221,6 +221,181 @@ class ApiClient {
    */
   async healthCheck() {
     return this.request("/health");
+  }
+
+  // ==================== ARAG Workflow API ====================
+
+  /**
+   * Generate, sign, and send minuta for ARAG case
+   * @param {number} caseId - Case ID
+   */
+  async generateMinuta(caseId) {
+    return this.request(`/cases/${caseId}/minuta`, {
+      method: "POST",
+    });
+  }
+
+  /**
+   * Generate suplido for judicial ARAG case
+   * @param {number} caseId - Case ID
+   * @param {string} district - Judicial district
+   */
+  async generateSuplido(caseId, district) {
+    return this.request(`/cases/${caseId}/suplido`, {
+      method: "POST",
+      body: JSON.stringify({ district }),
+    });
+  }
+
+  /**
+   * Get document and email history for a case
+   * @param {number} caseId - Case ID
+   */
+  async getCaseHistory(caseId) {
+    return this.request(`/cases/${caseId}/history`);
+  }
+
+  /**
+   * Download a document
+   * @param {number} documentId - Document ID
+   */
+  getDocumentDownloadUrl(documentId) {
+    return `${this.baseUrl}/documents/${documentId}/download`;
+  }
+
+  /**
+   * Test SMTP configuration
+   * @param {Object} smtpConfig - Optional SMTP config to test (for testing before save)
+   */
+  async testEmail(smtpConfig = null) {
+    return this.request("/email/test", {
+      method: "POST",
+      body: JSON.stringify(smtpConfig || {}),
+    });
+  }
+
+  /**
+   * Get mileage rates for all districts
+   */
+  async getMileageRates() {
+    return this.request("/mileage-rates");
+  }
+
+  // ==================== Particulares Workflow API ====================
+
+  /**
+   * Generate Hoja de Encargo for a PARTICULAR case
+   * @param {number} caseId - Case ID
+   * @param {string} services - Services description
+   * @param {number} fees - Professional fees
+   */
+  async generateHojaEncargo(caseId, services, fees) {
+    return this.request(`/cases/${caseId}/hoja-encargo`, {
+      method: "POST",
+      body: JSON.stringify({ services, fees }),
+    });
+  }
+
+  /**
+   * Sign an existing Hoja de Encargo document
+   * @param {number} caseId - Case ID
+   * @param {number} documentId - Document ID
+   */
+  async signHojaEncargo(caseId, documentId) {
+    return this.request(`/cases/${caseId}/hoja-encargo/sign`, {
+      method: "POST",
+      body: JSON.stringify({ documentId }),
+    });
+  }
+
+  /**
+   * Send Hoja de Encargo via email
+   * @param {number} caseId - Case ID
+   * @param {number} documentId - Document ID
+   * @param {string} email - Recipient email address
+   */
+  async sendHojaEncargo(caseId, documentId, email) {
+    return this.request(`/cases/${caseId}/hoja-encargo/send`, {
+      method: "POST",
+      body: JSON.stringify({ documentId, email }),
+    });
+  }
+
+  /**
+   * Get all Hoja de Encargo documents for a case
+   * @param {number} caseId - Case ID
+   */
+  async getHojaEncargoDocuments(caseId) {
+    return this.request(`/cases/${caseId}/hoja-encargo/documents`);
+  }
+
+  // ==================== Turno de Oficio API ====================
+
+  /**
+   * Finalize a Turno de Oficio case (ABIERTO → FINALIZADO)
+   * @param {number} caseId - Case ID
+   */
+  async finalizeTurnoCase(caseId) {
+    return this.request(`/turno/${caseId}/finalize`, {
+      method: "POST",
+    });
+  }
+
+  /**
+   * Reopen a finalized Turno de Oficio case (FINALIZADO → ABIERTO)
+   * @param {number} caseId - Case ID
+   */
+  async reopenTurnoCase(caseId) {
+    return this.request(`/turno/${caseId}/reopen`, {
+      method: "POST",
+    });
+  }
+
+  /**
+   * Delete a document from a Turno de Oficio case
+   * @param {number} caseId - Case ID
+   * @param {number} documentId - Document ID
+   */
+  async deleteTurnoDocument(caseId, documentId) {
+    return this.request(`/turno/${caseId}/documents/${documentId}`, {
+      method: "DELETE",
+    });
+  }
+
+  /**
+   * Upload a document to a Turno de Oficio case
+   * @param {number} caseId - Case ID
+   * @param {FormData} formData - Form data with 'document' file and 'description'
+   */
+  async uploadTurnoDocument(caseId, formData) {
+    const url = `${this.baseUrl}/turno/${caseId}/upload`;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+        // Note: Don't set Content-Type header, let browser set it with boundary for multipart
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(
+          errorData.error?.message || `HTTP ${response.status}`,
+        );
+        error.code = errorData.error?.code || "HTTP_ERROR";
+        error.status = response.status;
+        throw error;
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error.name === "TypeError" && error.message.includes("fetch")) {
+        const networkError = new Error("Error de conexión con el servidor");
+        networkError.code = "NETWORK_ERROR";
+        throw networkError;
+      }
+      throw error;
+    }
   }
 }
 
