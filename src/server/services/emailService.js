@@ -121,11 +121,12 @@ export class EmailService {
 
   /**
    * Format email subject for ARAG suplido
+   * Format: DJ00xxxxxx - SUPLIDO - [District]
    * @param {string} aragReference - ARAG case reference
    * @param {string} district - Judicial district
    * @returns {string} Formatted subject
    */
   static formatSuplidoSubject(aragReference, district) {
-    return `${aragReference} - SUPLIDO ${district}`;
+    return `${aragReference} - SUPLIDO - ${district}`;
   }
 }

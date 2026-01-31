@@ -74,7 +74,7 @@ export class FacturacionAragView {
     const mileageAmount = parseFloat(cfg[districtKey]) || 0;
 
     // Status display
-    const statusInfo = this.getStatusInfo(c.state, c.judicialDistrict);
+    const statusInfo = this.getStatusInfo(c.state);
 
     this.container.innerHTML = `
       <div class="facturacion-arag">
@@ -128,7 +128,7 @@ export class FacturacionAragView {
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                 </svg>
-                Ficha
+                Volver a Ficha
               </a>
               <button class="btn btn-danger-outline" id="btn-close-case">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -404,11 +404,18 @@ export class FacturacionAragView {
     // Add document history events
     if (history.documents && history.documents.length > 0) {
       history.documents.forEach((doc) => {
-        const isMinuta = doc.documentType === "minuta";
-        const isSuplido = doc.documentType === "suplido";
+        // API returns snake_case and uppercase document_type
+        const docType = (doc.document_type || "").toUpperCase();
+        const isMinuta = docType === "MINUTA";
+        const isSuplido = docType === "SUPLIDO";
+
+        // Extract filename from file_path
+        const filename = doc.file_path
+          ? doc.file_path.split("/").pop()
+          : `${docType.toLowerCase()}.pdf`;
 
         events.push({
-          date: doc.createdAt,
+          date: doc.created_at,
           title: isMinuta
             ? "Minuta Generada"
             : isSuplido
@@ -419,7 +426,7 @@ export class FacturacionAragView {
           documents: [
             {
               id: doc.id,
-              name: doc.filename,
+              name: filename,
               type: "file",
               link: true,
               signed: doc.signed,
@@ -434,15 +441,15 @@ export class FacturacionAragView {
       history.emails.forEach((email) => {
         const isError = email.status === "ERROR";
         events.push({
-          date: email.sentAt,
+          date: email.sent_at,
           title: isError ? "Error al Enviar Email" : "Email Enviado",
           type: "email",
           color: isError ? "red" : "green",
           emailDetails: {
-            to: email.toAddress,
+            to: email.recipient,
             subject: email.subject,
             status: email.status,
-            error: email.errorMessage,
+            error: email.error_message,
           },
         });
       });
@@ -536,7 +543,7 @@ export class FacturacionAragView {
       .join("");
   }
 
-  getStatusInfo(state, district) {
+  getStatusInfo(state) {
     switch (state) {
       case "JUDICIAL":
         return {

@@ -22,7 +22,8 @@ describe("SignatureService", () => {
   let pdfService;
 
   beforeAll(() => {
-    signatureService = new SignatureService(TEST_CERT_PATH, "test-password");
+    // Use visual signature (no certificate) for tests
+    signatureService = new SignatureService("", "");
     pdfService = new PDFGeneratorService(TEST_DOCS_PATH);
   });
 
@@ -133,6 +134,34 @@ describe("SignatureService", () => {
 
       const service = new SignatureService(testCertFile, "password");
       expect(service.verifyCertificate()).toBe(true);
+    });
+  });
+
+  describe("Strategy Pattern", () => {
+    it("should use visual strategy when no certificate configured", () => {
+      const service = new SignatureService("", "");
+      const info = service.getSignatureInfo();
+
+      expect(info.type).toBe("visual");
+      expect(info.details).toContain("visual");
+    });
+
+    it("should use crypto strategy when certificate path is provided", () => {
+      const service = new SignatureService("/path/to/cert.p12", "password");
+      const info = service.getSignatureInfo();
+
+      expect(info.type).toBe("cryptographic");
+      expect(info.details).toContain("P12");
+    });
+
+    it("should report isCryptoConfigured as false when certificate does not exist", () => {
+      const service = new SignatureService("/nonexistent/cert.p12", "password");
+      expect(service.isCryptoConfigured()).toBe(false);
+    });
+
+    it("should report isCryptoConfigured as false when using visual signature", () => {
+      const service = new SignatureService("", "");
+      expect(service.isCryptoConfigured()).toBe(false);
     });
   });
 });

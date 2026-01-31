@@ -143,7 +143,7 @@ describe("MinutaWorkflowService", () => {
       expect(doc.document_type).toBe("SUPLIDO");
     });
 
-    it("should execute steps in order for suplido", async () => {
+    it("should execute steps in order for suplido: generate → sign → email", async () => {
       const result = await workflowService.executeSuplidoWorkflow(
         testCaseData,
         "Marbella",
@@ -151,11 +151,18 @@ describe("MinutaWorkflowService", () => {
         config,
       );
 
-      expect(result.steps.length).toBe(2);
+      // Now includes 3 steps: generate, sign, email
+      expect(result.steps.length).toBe(3);
       expect(result.steps[0].step).toBe("generate");
       expect(result.steps[1].step).toBe("sign");
+      expect(result.steps[2].step).toBe("email");
+
+      // Generate and sign should complete
       expect(result.steps[0].status).toBe("completed");
       expect(result.steps[1].status).toBe("completed");
+
+      // Email should be skipped (no SMTP configured in tests)
+      expect(result.steps[2].status).toBe("skipped");
     });
   });
 });

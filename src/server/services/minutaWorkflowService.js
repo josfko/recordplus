@@ -120,6 +120,7 @@ export class MinutaWorkflowService {
 
   /**
    * Execute suplido generation workflow
+   * Generates PDF → Signs → Records document → Sends email (if SMTP configured)
    * @param {Object} caseData - Case information
    * @param {string} district - Judicial district
    * @param {number} amount - Mileage amount
@@ -131,6 +132,7 @@ export class MinutaWorkflowService {
       steps: [],
       success: false,
       documentId: null,
+      emailId: null,
     };
 
     try {
@@ -161,6 +163,38 @@ export class MinutaWorkflowService {
       result.amount = amount;
       result.district = district;
 
+      // Step 4: Send email (if SMTP configured)
+      result.steps.push({ step: "email", status: "in_progress" });
+      const emailTo = config.arag_email || "facturacionsiniestros@arag.es";
+      const emailSubject = EmailService.formatSuplidoSubject(
+        caseData.aragReference,
+        district,
+      );
+
+      if (this.emailService.isConfigured()) {
+        await this.emailService.sendEmail({
+          to: emailTo,
+          subject: emailSubject,
+          body: `Adjunto suplido por desplazamiento a ${district} para el expediente ${caseData.aragReference}.`,
+          attachmentPath: signedPath,
+        });
+        result.steps[2].status = "completed";
+
+        // Step 5: Record successful email
+        const emailRecord = this.emailHistory.create({
+          caseId: caseData.id,
+          documentId: docRecord.id,
+          recipient: emailTo,
+          subject: emailSubject,
+          status: "SENT",
+        });
+        result.emailId = emailRecord.id;
+      } else {
+        // SMTP not configured - skip email but mark as skipped
+        result.steps[2].status = "skipped";
+        result.steps[2].message = "SMTP no configurado";
+      }
+
       result.success = true;
       return result;
     } catch (error) {
@@ -169,6 +203,20 @@ export class MinutaWorkflowService {
         currentStep.status = "failed";
         currentStep.error = error.message;
       }
+
+      // Record failed email if we got past document generation
+      if (result.documentId && !result.emailId) {
+        const emailTo = config.arag_email || "facturacionsiniestros@arag.es";
+        this.emailHistory.create({
+          caseId: caseData.id,
+          documentId: result.documentId,
+          recipient: emailTo,
+          subject: EmailService.formatSuplidoSubject(caseData.aragReference, district),
+          status: "ERROR",
+          errorMessage: error.message,
+        });
+      }
+
       throw error;
     }
   }

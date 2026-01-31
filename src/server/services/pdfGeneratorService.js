@@ -12,7 +12,7 @@ export class PDFGeneratorService {
   }
 
   /**
-   * Generate ARAG minuta PDF
+   * Generate ARAG minuta PDF with professional layout
    * @param {Object} caseData - Case information
    * @param {Object} config - Configuration (arag_base_fee, vat_rate)
    * @returns {Promise<string>} Path to generated PDF
@@ -35,58 +35,149 @@ export class PDFGeneratorService {
     const outputPath = join(outputDir, filename);
 
     return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ size: "A4", margin: 50 });
+      const doc = new PDFDocument({ size: "A4", margin: 60 });
       const stream = createWriteStream(outputPath);
 
       doc.pipe(stream);
 
-      // Header
-      doc
-        .fontSize(18)
-        .font("Helvetica-Bold")
-        .text("MINUTA DE HONORARIOS", { align: "center" });
-      doc.moveDown(2);
+      const pageWidth = doc.page.width;
+      const leftMargin = 60;
+      const rightMargin = pageWidth - 60;
+      const contentWidth = rightMargin - leftMargin;
 
-      // Case details
-      doc.fontSize(12).font("Helvetica");
-      doc.text(`Cliente: ${caseData.clientName}`);
-      doc.text(`Referencia ARAG: ${caseData.aragReference}`);
-      doc.text(`Referencia Interna: ${caseData.internalReference}`);
-      doc.text(`Fecha: ${this.formatDate(new Date())}`);
-      doc.moveDown(2);
+      // ═══════════════════════════════════════════════════════════════
+      // DOCUMENT HEADER
+      // ═══════════════════════════════════════════════════════════════
 
-      // Fee breakdown table header
-      doc.font("Helvetica-Bold");
-      doc.text("CONCEPTO", 50, doc.y);
-      doc.text("IMPORTE", 450, doc.y - 14, { align: "right" });
-      doc.moveDown();
+      // Header box with title
+      doc.rect(leftMargin, 50, contentWidth, 50)
+         .fillColor('#2c3e50')
+         .fill();
 
-      // Separator line
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(0.5);
+      doc.fillColor('#ffffff')
+         .fontSize(22)
+         .font('Helvetica-Bold')
+         .text('MINUTA DE HONORARIOS', leftMargin, 65, {
+           width: contentWidth,
+           align: 'center'
+         });
 
-      // Fee items
-      doc.font("Helvetica");
-      doc.text("Honorarios profesionales", 50, doc.y);
-      doc.text(this.formatCurrency(baseFee), 450, doc.y - 14, {
-        align: "right",
-      });
-      doc.moveDown();
+      doc.fillColor('#000000');
+      doc.y = 120;
 
-      doc.text(`IVA (${vatRate}%)`, 50, doc.y);
-      doc.text(this.formatCurrency(vatAmount), 450, doc.y - 14, {
-        align: "right",
-      });
-      doc.moveDown();
+      // ═══════════════════════════════════════════════════════════════
+      // CASE INFORMATION SECTION
+      // ═══════════════════════════════════════════════════════════════
 
-      // Total separator
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(0.5);
+      // Section header
+      this.drawSectionHeader(doc, 'DATOS DEL EXPEDIENTE', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
 
-      // Total
-      doc.font("Helvetica-Bold");
-      doc.text("TOTAL", 50, doc.y);
-      doc.text(this.formatCurrency(total), 450, doc.y - 14, { align: "right" });
+      // Info grid (2 columns)
+      const col1X = leftMargin + 10;
+      const col2X = leftMargin + contentWidth / 2;
+      let infoY = doc.y;
+
+      doc.fontSize(10).font('Helvetica');
+
+      // Left column
+      doc.fillColor('#666666').text('Cliente:', col1X, infoY);
+      doc.fillColor('#000000').font('Helvetica-Bold')
+         .text(caseData.clientName, col1X + 70, infoY);
+
+      infoY += 18;
+      doc.font('Helvetica').fillColor('#666666').text('Ref. ARAG:', col1X, infoY);
+      doc.fillColor('#000000').font('Helvetica-Bold')
+         .text(caseData.aragReference, col1X + 70, infoY);
+
+      // Right column
+      infoY = doc.y - 36;
+      doc.font('Helvetica').fillColor('#666666').text('Ref. Interna:', col2X, infoY);
+      doc.fillColor('#000000').font('Helvetica-Bold')
+         .text(caseData.internalReference, col2X + 80, infoY);
+
+      infoY += 18;
+      doc.font('Helvetica').fillColor('#666666').text('Fecha:', col2X, infoY);
+      doc.fillColor('#000000').font('Helvetica-Bold')
+         .text(this.formatDate(new Date()), col2X + 80, infoY);
+
+      doc.fillColor('#000000');
+      doc.y = infoY + 40;
+
+      // ═══════════════════════════════════════════════════════════════
+      // FEE BREAKDOWN TABLE
+      // ═══════════════════════════════════════════════════════════════
+
+      this.drawSectionHeader(doc, 'DESGLOSE DE HONORARIOS', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
+
+      const tableTop = doc.y;
+      const tableLeft = leftMargin;
+      const tableWidth = contentWidth;
+      const colConcepto = tableLeft + 10;
+      const colImporte = tableLeft + tableWidth - 100;
+
+      // Table header row
+      doc.rect(tableLeft, tableTop, tableWidth, 25)
+         .fillColor('#f5f5f5')
+         .fill();
+
+      doc.fillColor('#333333')
+         .fontSize(10)
+         .font('Helvetica-Bold')
+         .text('CONCEPTO', colConcepto, tableTop + 8)
+         .text('IMPORTE', colImporte, tableTop + 8, { width: 90, align: 'right' });
+
+      // Table rows
+      let rowY = tableTop + 25;
+
+      // Row 1: Base fee
+      doc.rect(tableLeft, rowY, tableWidth, 28)
+         .strokeColor('#e0e0e0')
+         .stroke();
+      doc.fillColor('#000000')
+         .fontSize(10)
+         .font('Helvetica')
+         .text('Honorarios profesionales por gestión de expediente ARAG', colConcepto, rowY + 9)
+         .text(this.formatCurrency(baseFee), colImporte, rowY + 9, { width: 90, align: 'right' });
+
+      rowY += 28;
+
+      // Row 2: VAT
+      doc.rect(tableLeft, rowY, tableWidth, 28)
+         .strokeColor('#e0e0e0')
+         .stroke();
+      doc.text(`IVA (${vatRate}%)`, colConcepto, rowY + 9)
+         .text(this.formatCurrency(vatAmount), colImporte, rowY + 9, { width: 90, align: 'right' });
+
+      rowY += 28;
+
+      // Total row (highlighted)
+      doc.rect(tableLeft, rowY, tableWidth, 32)
+         .fillColor('#2c3e50')
+         .fill();
+      doc.fillColor('#ffffff')
+         .fontSize(12)
+         .font('Helvetica-Bold')
+         .text('TOTAL A PERCIBIR', colConcepto, rowY + 10)
+         .text(this.formatCurrency(total), colImporte, rowY + 10, { width: 90, align: 'right' });
+
+      doc.fillColor('#000000');
+      doc.y = rowY + 60;
+
+      // ═══════════════════════════════════════════════════════════════
+      // LEGAL NOTICE
+      // ═══════════════════════════════════════════════════════════════
+
+      doc.fontSize(8)
+         .fillColor('#888888')
+         .font('Helvetica')
+         .text(
+           'Documento generado electrónicamente. Los honorarios indicados corresponden a la tarifa fija establecida ' +
+           'por el convenio con ARAG Seguros.',
+           leftMargin, doc.y,
+           { width: contentWidth, align: 'center' }
+         );
 
       doc.end();
 
@@ -96,7 +187,7 @@ export class PDFGeneratorService {
   }
 
   /**
-   * Generate suplido (mileage expense) PDF
+   * Generate suplido (mileage expense) PDF with professional layout
    * @param {Object} caseData - Case information
    * @param {string} district - Judicial district
    * @param {number} amount - Mileage amount
@@ -115,40 +206,138 @@ export class PDFGeneratorService {
     const outputPath = join(outputDir, filename);
 
     return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ size: "A4", margin: 50 });
+      const doc = new PDFDocument({ size: "A4", margin: 60 });
       const stream = createWriteStream(outputPath);
 
       doc.pipe(stream);
 
-      // Header
-      doc
-        .fontSize(18)
-        .font("Helvetica-Bold")
-        .text("SUPLIDO POR DESPLAZAMIENTO", { align: "center" });
-      doc.moveDown(2);
+      const pageWidth = doc.page.width;
+      const leftMargin = 60;
+      const rightMargin = pageWidth - 60;
+      const contentWidth = rightMargin - leftMargin;
 
-      // Case details
-      doc.fontSize(12).font("Helvetica");
-      doc.text(`Cliente: ${caseData.clientName}`);
-      doc.text(`Referencia ARAG: ${caseData.aragReference}`);
-      doc.text(`Referencia Interna: ${caseData.internalReference}`);
-      doc.text(`Fecha: ${this.formatDate(new Date())}`);
-      doc.moveDown(2);
+      // ═══════════════════════════════════════════════════════════════
+      // DOCUMENT HEADER
+      // ═══════════════════════════════════════════════════════════════
 
-      // Mileage details
-      doc.text(`Partido Judicial: ${district}`);
-      doc.moveDown();
+      // Header box with title
+      doc.rect(leftMargin, 50, contentWidth, 50)
+         .fillColor('#1a5276')
+         .fill();
 
-      // Separator line
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(0.5);
+      doc.fillColor('#ffffff')
+         .fontSize(22)
+         .font('Helvetica-Bold')
+         .text('SUPLIDO POR DESPLAZAMIENTO', leftMargin, 65, {
+           width: contentWidth,
+           align: 'center'
+         });
 
-      // Amount
-      doc.font("Helvetica-Bold");
-      doc.text("Importe por desplazamiento:", 50, doc.y);
-      doc.text(this.formatCurrency(amount), 450, doc.y - 14, {
-        align: "right",
-      });
+      doc.fillColor('#000000');
+      doc.y = 120;
+
+      // ═══════════════════════════════════════════════════════════════
+      // CASE INFORMATION SECTION
+      // ═══════════════════════════════════════════════════════════════
+
+      this.drawSectionHeader(doc, 'DATOS DEL EXPEDIENTE', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
+
+      // Info grid (2 columns)
+      const col1X = leftMargin + 10;
+      const col2X = leftMargin + contentWidth / 2;
+      let infoY = doc.y;
+
+      doc.fontSize(10).font('Helvetica');
+
+      // Left column
+      doc.fillColor('#666666').text('Cliente:', col1X, infoY);
+      doc.fillColor('#000000').font('Helvetica-Bold')
+         .text(caseData.clientName, col1X + 70, infoY);
+
+      infoY += 18;
+      doc.font('Helvetica').fillColor('#666666').text('Ref. ARAG:', col1X, infoY);
+      doc.fillColor('#000000').font('Helvetica-Bold')
+         .text(caseData.aragReference, col1X + 70, infoY);
+
+      // Right column
+      infoY = doc.y - 36;
+      doc.font('Helvetica').fillColor('#666666').text('Ref. Interna:', col2X, infoY);
+      doc.fillColor('#000000').font('Helvetica-Bold')
+         .text(caseData.internalReference, col2X + 80, infoY);
+
+      infoY += 18;
+      doc.font('Helvetica').fillColor('#666666').text('Fecha:', col2X, infoY);
+      doc.fillColor('#000000').font('Helvetica-Bold')
+         .text(this.formatDate(new Date()), col2X + 80, infoY);
+
+      doc.fillColor('#000000');
+      doc.y = infoY + 40;
+
+      // ═══════════════════════════════════════════════════════════════
+      // JUDICIAL DISTRICT - PROMINENTLY DISPLAYED
+      // ═══════════════════════════════════════════════════════════════
+
+      this.drawSectionHeader(doc, 'PARTIDO JUDICIAL', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
+
+      // District highlight box
+      doc.rect(leftMargin, doc.y, contentWidth, 45)
+         .fillColor('#e8f4f8')
+         .fill();
+
+      doc.rect(leftMargin, doc.y, contentWidth, 45)
+         .strokeColor('#1a5276')
+         .lineWidth(1)
+         .stroke();
+
+      doc.fillColor('#1a5276')
+         .fontSize(18)
+         .font('Helvetica-Bold')
+         .text(district.toUpperCase(), leftMargin, doc.y + 14, {
+           width: contentWidth,
+           align: 'center'
+         });
+
+      doc.fillColor('#000000');
+      doc.y += 65;
+
+      // ═══════════════════════════════════════════════════════════════
+      // MILEAGE AMOUNT - PROMINENTLY DISPLAYED
+      // ═══════════════════════════════════════════════════════════════
+
+      this.drawSectionHeader(doc, 'IMPORTE POR DESPLAZAMIENTO', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
+
+      // Amount highlight box
+      doc.rect(leftMargin, doc.y, contentWidth, 60)
+         .fillColor('#1a5276')
+         .fill();
+
+      doc.fillColor('#ffffff')
+         .fontSize(28)
+         .font('Helvetica-Bold')
+         .text(this.formatCurrency(amount), leftMargin, doc.y + 18, {
+           width: contentWidth,
+           align: 'center'
+         });
+
+      doc.fillColor('#000000');
+      doc.y += 90;
+
+      // ═══════════════════════════════════════════════════════════════
+      // LEGAL NOTICE
+      // ═══════════════════════════════════════════════════════════════
+
+      doc.fontSize(8)
+         .fillColor('#888888')
+         .font('Helvetica')
+         .text(
+           'Documento generado electrónicamente. El importe corresponde a los gastos de desplazamiento ' +
+           'según la tarifa configurada para el partido judicial indicado.',
+           leftMargin, doc.y,
+           { width: contentWidth, align: 'center' }
+         );
 
       doc.end();
 
@@ -281,5 +470,28 @@ export class PDFGeneratorService {
       style: "currency",
       currency: "EUR",
     }).format(amount);
+  }
+
+  /**
+   * Draw a section header with underline
+   * @param {PDFDocument} doc - PDF document
+   * @param {string} title - Section title
+   * @param {number} x - X position
+   * @param {number} y - Y position
+   * @param {number} width - Section width
+   */
+  drawSectionHeader(doc, title, x, y, width) {
+    doc.fillColor('#333333')
+       .fontSize(11)
+       .font('Helvetica-Bold')
+       .text(title, x, y);
+
+    doc.moveTo(x, y + 16)
+       .lineTo(x + width, y + 16)
+       .strokeColor('#cccccc')
+       .lineWidth(0.5)
+       .stroke();
+
+    doc.y = y + 20;
   }
 }

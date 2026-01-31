@@ -177,28 +177,28 @@ export class CaseDetailView {
     if (c.state !== "ARCHIVADO") {
       // ARAG specific actions
       if (c.type === "ARAG") {
-        buttons += `<a href="#/invoicing/${c.id}" class="btn btn-secondary">Facturación</a>`;
-        buttons += `<button class="btn btn-secondary" id="btn-minuta">Generar Minuta</button>`;
+        buttons += `<a href="#/invoicing/${c.id}" class="btn btn-secondary btn-action-billing">Facturación</a>`;
+        buttons += `<button class="btn btn-secondary btn-action-document" id="btn-minuta">Generar Minuta</button>`;
         if (c.state === "ABIERTO") {
-          buttons += `<button class="btn btn-secondary" id="btn-judicial">Pasar a Judicial</button>`;
+          buttons += `<button class="btn btn-secondary btn-action-transition" id="btn-judicial">Pasar a Judicial</button>`;
         }
         if (c.state === "JUDICIAL") {
-          buttons += `<button class="btn btn-secondary" id="btn-suplido">Generar Suplido</button>`;
+          buttons += `<button class="btn btn-secondary btn-action-document" id="btn-suplido">Generar Suplido</button>`;
         }
       }
 
       // PARTICULAR specific actions
       if (c.type === "PARTICULAR") {
-        buttons += `<a href="#/particulares/${c.id}" class="btn btn-secondary">Hoja de Encargo</a>`;
+        buttons += `<a href="#/particulares/${c.id}" class="btn btn-secondary btn-action-document">Hoja de Encargo</a>`;
       }
 
       // TURNO_OFICIO specific actions
       if (c.type === "TURNO_OFICIO") {
-        buttons += `<a href="#/turno/${c.id}" class="btn btn-secondary">Gestionar Expediente</a>`;
+        buttons += `<a href="#/turno/${c.id}" class="btn btn-secondary btn-action-billing">Gestionar Expediente</a>`;
       }
 
       // Archive button for all types
-      buttons += `<button class="btn btn-secondary" id="btn-archive">Archivar</button>`;
+      buttons += `<button class="btn btn-secondary btn-action-archive" id="btn-archive">Archivar</button>`;
     }
 
     return buttons;
