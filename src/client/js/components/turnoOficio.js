@@ -122,16 +122,6 @@ export class TurnoOficioView {
           </div>
         </div>
 
-        <!-- Info Message -->
-        <div class="turno-info-message">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="16" x2="12" y2="12"/>
-            <line x1="12" y1="8" x2="12.01" y2="8"/>
-          </svg>
-          <p>Los expedientes de Turno de Oficio no generan minutas automáticas. Puede subir documentos manualmente.</p>
-        </div>
-
         <!-- Main Content -->
         <div class="turno-content">
           <!-- Left Column - Case Data -->

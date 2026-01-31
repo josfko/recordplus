@@ -20,7 +20,7 @@ Before writing any code:
 
 ### Frontend
 - **Vanilla JavaScript** with ES Modules (NO frameworks)
-- **Pure CSS** with CSS custom properties (NO Tailwind, NO CSS frameworks)
+- **Pure CSS** with CSS custom properties (Never use Tailwind, do not use CSS frameworks)
 - **SPA** with hash-based routing
 - **Hosted on:** Cloudflare Pages
 
@@ -183,7 +183,25 @@ CREATE TABLE cases (
 
 ### Design Effects
 - Glassmorphism: `backdrop-filter: blur(10px)` on cards
-- Sidebar: 256px width
+- Sidebar: Uses `clamp(200px, calc(100vw - 800px), 256px)` for automatic responsive sizing
+
+### Responsive Constraints
+This is a desktop-first application with strict layout constraints:
+
+- **Minimum viewport:** 1000px (horizontal scroll below this width)
+- **Sidebar:** Uses CSS `clamp()` to automatically shrink from 256px to 200px
+- **Main content:** Minimum 750px width
+- **No text wrapping:** Inline elements (tabs, buttons, badges) use `white-space: nowrap`
+- **No element stacking:** Headers and control bars use `flex-wrap: nowrap`
+
+Key CSS variables (defined in `variables.css`):
+```css
+--sidebar-width: clamp(200px, calc(100vw - 800px), 256px);
+--min-viewport-width: 1000px;
+--min-main-width: 750px;
+```
+
+See `.kiro/specs/responsive-constraints/` for full specification.
 
 ## Business Rules
 

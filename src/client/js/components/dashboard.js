@@ -65,7 +65,7 @@ export class DashboardView {
       <!-- Header -->
       <div class="header">
         <div class="header-title">
-          <h1>Panel de Control</h1>
+          <h1>Dashboard</h1>
           <p>Resumen mensual y gestión rápida.</p>
         </div>
         <div class="header-actions">
