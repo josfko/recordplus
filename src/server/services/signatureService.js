@@ -3,19 +3,22 @@
  *
  * Uses Strategy Pattern to support both visual and cryptographic signatures.
  *
- * Current Implementation (Phase 2):
+ * Implementation:
  * - VisualSignatureStrategy: Adds visual "Documento firmado digitalmente" box (default)
- * - CryptoSignatureStrategy: Placeholder for P12 certificate signing (Phase 4)
+ * - CryptoSignatureStrategy: P12 certificate signing with ACA (Abogacía) certificates
  *
  * To enable cryptographic signatures:
- * 1. Install packages: npm install @signpdf/signpdf @signpdf/signer-p12 @signpdf/placeholder-pdf-lib node-forge
- * 2. Configure certificate_path and certificate_password in Configuration
- * 3. Service auto-selects CryptoSignatureStrategy when certificate is configured
+ * 1. Configure certificate_path and certificate_password in Configuration
+ * 2. Service auto-selects CryptoSignatureStrategy when certificate is configured
  *
  * @see SIGNATURE_UPGRADE.md for detailed upgrade instructions
  */
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { PDFDocument, rgb } from "pdf-lib";
+import signpdf from "@signpdf/signpdf";
+import { P12Signer } from "@signpdf/signer-p12";
+import { pdflibAddPlaceholder } from "@signpdf/placeholder-pdf-lib";
+import forge from "node-forge";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SIGNATURE STRATEGY INTERFACE
@@ -115,24 +118,14 @@ class VisualSignatureStrategy extends SignatureStrategy {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CRYPTOGRAPHIC SIGNATURE STRATEGY (Phase 4 - Placeholder)
+// CRYPTOGRAPHIC SIGNATURE STRATEGY
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Cryptographic signature using P12/PKCS12 certificate
+ * Cryptographic signature using P12/PKCS12 certificate (ACA, FNMT, etc.)
  *
- * PHASE 4 IMPLEMENTATION:
- * Requires installation of:
- * - @signpdf/signpdf
- * - @signpdf/signer-p12
- * - @signpdf/placeholder-pdf-lib
- * - node-forge
- *
- * Implementation steps:
- * 1. Add signature placeholder to PDF using pdflibAddPlaceholder
- * 2. Create P12Signer with certificate and password
- * 3. Sign PDF with signpdf.sign()
- * 4. Return signed PDF buffer
+ * Creates legally valid digital signatures compliant with eIDAS (EU 910/2014).
+ * Supports ACA (Autoridad de Certificación de la Abogacía) certificates.
  */
 class CryptoSignatureStrategy extends SignatureStrategy {
   constructor(certificatePath, certificatePassword) {
@@ -145,50 +138,169 @@ class CryptoSignatureStrategy extends SignatureStrategy {
    * Sign PDF with cryptographic certificate
    * @param {Buffer} pdfBuffer - PDF file contents
    * @returns {Promise<Buffer>} Cryptographically signed PDF
-   * @throws {Error} If certificate not configured or signing fails
+   * @throws {Error} If certificate not found, password incorrect, or signing fails
    */
   async sign(pdfBuffer) {
-    // Phase 4 implementation - uncomment when packages are installed:
-    //
-    // import signpdf from '@signpdf/signpdf';
-    // import { P12Signer } from '@signpdf/signer-p12';
-    // import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
-    //
-    // // Load certificate
-    // const certBuffer = readFileSync(this.certificatePath);
-    //
-    // // Load and prepare PDF
-    // const pdfDoc = await PDFDocument.load(pdfBuffer);
-    //
-    // // Add signature placeholder
-    // pdflibAddPlaceholder({
-    //   pdfDoc,
-    //   reason: 'Factura ARAG - Firma Digital',
-    //   contactInfo: 'despacho@example.com',
-    //   name: 'Despacho de Abogados',
-    //   location: 'Málaga, España',
-    // });
-    //
-    // // Create signer
-    // const signer = new P12Signer(certBuffer, {
-    //   passphrase: this.certificatePassword,
-    // });
-    //
-    // // Sign PDF
-    // const signedPdf = await signpdf.sign(await pdfDoc.save(), signer);
-    // return signedPdf;
+    // Validate certificate file exists
+    if (!existsSync(this.certificatePath)) {
+      throw new Error(
+        `Certificado no encontrado: ${this.certificatePath}. ` +
+          "Verifique la ruta del certificado en Configuración."
+      );
+    }
 
-    throw new Error(
-      "Firma criptográfica no disponible. " +
-      "Configure el certificado .p12 en la página de Configuración. " +
-      "Consulte SIGNATURE_UPGRADE.md para más información."
-    );
+    // Load certificate
+    let certBuffer;
+    try {
+      certBuffer = readFileSync(this.certificatePath);
+    } catch (err) {
+      throw new Error(
+        `Error al leer el certificado: ${err.message}. ` +
+          "Verifique los permisos del archivo."
+      );
+    }
+
+    // Load and prepare PDF
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+
+    // Get certificate info for signature metadata
+    let certInfo;
+    try {
+      certInfo = await CryptoSignatureStrategy.getCertificateInfo(
+        this.certificatePath,
+        this.certificatePassword
+      );
+    } catch (err) {
+      // Re-throw with Spanish message
+      if (err.message.includes("contraseña")) {
+        throw err;
+      }
+      throw new Error(`Error al leer información del certificado: ${err.message}`);
+    }
+
+    // Add signature placeholder with certificate metadata
+    pdflibAddPlaceholder({
+      pdfDoc,
+      reason: "Factura ARAG - Firma Digital ACA",
+      contactInfo: certInfo.cn || "Abogado",
+      name: certInfo.cn || "Firmante",
+      location: "Málaga, España",
+    });
+
+    // Create signer with P12 certificate
+    let signer;
+    try {
+      signer = new P12Signer(certBuffer, {
+        passphrase: this.certificatePassword,
+      });
+    } catch (err) {
+      if (
+        err.message.includes("MAC") ||
+        err.message.includes("password") ||
+        err.message.includes("decrypt")
+      ) {
+        throw new Error(
+          "Contraseña del certificado incorrecta. " +
+            "Verifique la contraseña en Configuración."
+        );
+      }
+      throw new Error(`Error al procesar el certificado: ${err.message}`);
+    }
+
+    // Sign PDF
+    try {
+      const pdfWithPlaceholder = await pdfDoc.save();
+      const signedPdf = await signpdf.sign(pdfWithPlaceholder, signer);
+      return Buffer.from(signedPdf);
+    } catch (err) {
+      if (
+        err.message.includes("MAC") ||
+        err.message.includes("password") ||
+        err.message.includes("decrypt")
+      ) {
+        throw new Error(
+          "Contraseña del certificado incorrecta. " +
+            "Verifique la contraseña en Configuración."
+        );
+      }
+      throw new Error(`Error al firmar el documento: ${err.message}`);
+    }
   }
 
   getInfo() {
     return {
       type: "cryptographic",
       details: `Firma criptográfica P12 (${this.certificatePath})`,
+    };
+  }
+
+  /**
+   * Extract certificate information from P12 file
+   * @param {string} certificatePath - Path to .p12/.pfx file
+   * @param {string} password - Certificate password
+   * @returns {Promise<Object>} Certificate info (cn, issuer, organization, validFrom, validTo, isExpired)
+   * @throws {Error} If certificate cannot be read or password is incorrect
+   */
+  static async getCertificateInfo(certificatePath, password) {
+    // Validate file exists
+    if (!existsSync(certificatePath)) {
+      throw new Error(`Certificado no encontrado: ${certificatePath}`);
+    }
+
+    // Read certificate file
+    const p12Buffer = readFileSync(certificatePath);
+    const p12Der = forge.util.decode64(p12Buffer.toString("base64"));
+    const p12Asn1 = forge.asn1.fromDer(p12Der);
+
+    // Parse P12
+    let p12;
+    try {
+      p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
+    } catch (err) {
+      if (
+        err.message.includes("MAC") ||
+        err.message.includes("Invalid password") ||
+        err.message.includes("decrypt")
+      ) {
+        throw new Error(
+          "Contraseña del certificado incorrecta. " +
+            "Verifique la contraseña introducida."
+        );
+      }
+      throw new Error(`Error al leer el certificado P12: ${err.message}`);
+    }
+
+    // Extract certificate from bags
+    const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+    const certBag = certBags[forge.pki.oids.certBag];
+
+    if (!certBag || certBag.length === 0) {
+      throw new Error("No se encontró certificado en el archivo P12");
+    }
+
+    const cert = certBag[0].cert;
+
+    // Extract subject fields
+    const cnAttr = cert.subject.getField("CN");
+    const orgAttr = cert.subject.getField("O");
+
+    // Extract issuer fields
+    const issuerCnAttr = cert.issuer.getField("CN");
+    const issuerOrgAttr = cert.issuer.getField("O");
+
+    const validFrom = cert.validity.notBefore;
+    const validTo = cert.validity.notAfter;
+    const now = new Date();
+
+    return {
+      cn: cnAttr ? cnAttr.value : null,
+      organization: orgAttr ? orgAttr.value : null,
+      issuer: issuerCnAttr ? issuerCnAttr.value : issuerOrgAttr?.value || null,
+      validFrom: validFrom,
+      validTo: validTo,
+      isExpired: now > validTo,
+      isNotYetValid: now < validFrom,
+      daysUntilExpiration: Math.ceil((validTo - now) / (1000 * 60 * 60 * 24)),
     };
   }
 }

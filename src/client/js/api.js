@@ -161,6 +161,19 @@ class ApiClient {
     });
   }
 
+  /**
+   * Test a digital certificate (P12/PKCS12)
+   * @param {string} path - Path to certificate file on server
+   * @param {string} password - Certificate password
+   * @returns {Promise<Object>} Certificate info or error
+   */
+  async testCertificate(path, password) {
+    return this.request("/config/test-certificate", {
+      method: "POST",
+      body: JSON.stringify({ path, password }),
+    });
+  }
+
   // ==================== Export/Import API ====================
 
   /**

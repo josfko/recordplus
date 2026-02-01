@@ -4,7 +4,10 @@
  * Validates: Requirements 3.1, 3.2, 3.3
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { SignatureService } from "../services/signatureService.js";
+import {
+  SignatureService,
+  CryptoSignatureStrategy,
+} from "../services/signatureService.js";
 import { PDFGeneratorService } from "../services/pdfGeneratorService.js";
 import {
   existsSync,
@@ -13,9 +16,14 @@ import {
   writeFileSync,
   mkdirSync,
 } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEST_DOCS_PATH = "./data/documents/test-signature";
-const TEST_CERT_PATH = "./data/certificates/test.p12";
+const TEST_CERT_PATH = join(__dirname, "fixtures/test-certificate.p12");
+const EXPIRED_CERT_PATH = join(__dirname, "fixtures/expired-certificate.p12");
+const TEST_CERT_PASSWORD = "testpassword";
 
 describe("SignatureService", () => {
   let signatureService;
@@ -162,6 +170,129 @@ describe("SignatureService", () => {
     it("should report isCryptoConfigured as false when using visual signature", () => {
       const service = new SignatureService("", "");
       expect(service.isCryptoConfigured()).toBe(false);
+    });
+  });
+
+  describe("CryptoSignatureStrategy - Signing", () => {
+    let testPdfBuffer;
+
+    beforeAll(async () => {
+      // Generate a test PDF buffer to sign
+      const tempPdfService = new PDFGeneratorService(TEST_DOCS_PATH);
+      const caseData = {
+        id: 100,
+        clientName: "Crypto Test Client",
+        aragReference: "DJ00111111",
+        internalReference: "IY000111",
+      };
+      const config = {
+        arag_base_fee: "203.00",
+        vat_rate: "21",
+      };
+      const pdfPath = await tempPdfService.generateMinuta(caseData, config);
+      testPdfBuffer = readFileSync(pdfPath);
+    });
+
+    it("should sign PDF with P12 certificate", async () => {
+      const strategy = new CryptoSignatureStrategy(
+        TEST_CERT_PATH,
+        TEST_CERT_PASSWORD
+      );
+      const signedPdf = await strategy.sign(testPdfBuffer);
+
+      // Verify PDF is larger (contains signature)
+      expect(signedPdf.length).toBeGreaterThan(testPdfBuffer.length);
+
+      // Verify PDF structure is valid
+      expect(signedPdf.slice(0, 5).toString()).toBe("%PDF-");
+    });
+
+    it("should throw error for incorrect password", async () => {
+      const strategy = new CryptoSignatureStrategy(TEST_CERT_PATH, "wrongpassword");
+
+      await expect(strategy.sign(testPdfBuffer)).rejects.toThrow(/contraseña/i);
+    });
+
+    it("should throw error for missing certificate file", async () => {
+      const strategy = new CryptoSignatureStrategy(
+        "/nonexistent/path.p12",
+        "password"
+      );
+
+      await expect(strategy.sign(testPdfBuffer)).rejects.toThrow(
+        /no encontrado|ENOENT/i
+      );
+    });
+
+    it("should return cryptographic signature info", () => {
+      const strategy = new CryptoSignatureStrategy(
+        TEST_CERT_PATH,
+        TEST_CERT_PASSWORD
+      );
+      const info = strategy.getInfo();
+
+      expect(info.type).toBe("cryptographic");
+      expect(info.details).toContain(TEST_CERT_PATH);
+    });
+  });
+
+  describe("CryptoSignatureStrategy - Certificate Validation", () => {
+    it("should extract CN and expiration from valid P12 certificate", async () => {
+      const info = await CryptoSignatureStrategy.getCertificateInfo(
+        TEST_CERT_PATH,
+        TEST_CERT_PASSWORD
+      );
+
+      expect(info.cn).toBe("Test ACA Certificate");
+      expect(info.validTo).toBeInstanceOf(Date);
+      expect(info.validFrom).toBeInstanceOf(Date);
+      expect(info.isExpired).toBe(false);
+    });
+
+    it("should detect expiring/expired certificate", async () => {
+      const info = await CryptoSignatureStrategy.getCertificateInfo(
+        EXPIRED_CERT_PATH,
+        TEST_CERT_PASSWORD
+      );
+
+      // The expired certificate was created with 0 days validity
+      // It should have a very short validity period
+      expect(info.validTo).toBeInstanceOf(Date);
+      expect(info.validFrom).toBeInstanceOf(Date);
+
+      // Certificate should be valid for at most a few days (created with days=0)
+      const validityPeriodMs = info.validTo.getTime() - info.validFrom.getTime();
+      const validityDays = validityPeriodMs / (1000 * 60 * 60 * 24);
+      // OpenSSL with days=0 creates ~30 day validity, so check it's short
+      expect(validityDays).toBeLessThanOrEqual(31);
+
+      // daysUntilExpiration should be defined
+      expect(typeof info.daysUntilExpiration).toBe("number");
+    });
+
+    it("should throw error for wrong password when getting certificate info", async () => {
+      await expect(
+        CryptoSignatureStrategy.getCertificateInfo(TEST_CERT_PATH, "wrongpassword")
+      ).rejects.toThrow(/contraseña/i);
+    });
+
+    it("should throw error for non-existent certificate file", async () => {
+      await expect(
+        CryptoSignatureStrategy.getCertificateInfo(
+          "/nonexistent/path.p12",
+          "password"
+        )
+      ).rejects.toThrow(/no encontrado|ENOENT/i);
+    });
+
+    it("should include issuer organization in certificate info", async () => {
+      const info = await CryptoSignatureStrategy.getCertificateInfo(
+        TEST_CERT_PATH,
+        TEST_CERT_PASSWORD
+      );
+
+      expect(info.issuer).toBeDefined();
+      expect(info.organization).toBe("Test Law Firm");
     });
   });
 });

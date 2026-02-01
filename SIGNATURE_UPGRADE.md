@@ -1,165 +1,222 @@
-# Upgrading to Cryptographic PDF Signatures
+# Cryptographic PDF Signatures with ACA Certificate
 
-This guide explains how to enable real cryptographic PDF signatures in Record+.
+This guide explains how to configure cryptographic PDF signatures in Record+ using your ACA (Autoridad de Certificación de la Abogacía) certificate.
 
-## Current Status
+## Overview
 
-**Visual Signature (Default)**
-- Adds a text box at the bottom of PDFs: "Documento firmado digitalmente"
-- Includes timestamp
-- NOT a cryptographic signature - just visual indicator
-- Legal validity may be limited
+Record+ supports two signature modes:
 
-**Cryptographic Signature (Phase 4)**
-- Uses PKCS#12 (.p12/.pfx) certificate
-- Creates legally valid digital signature
-- Verifiable in Adobe Reader and other PDF viewers
-- Requires obtaining a certificate from CA or FNMT
+| Mode | Description | Legal Validity |
+|------|-------------|----------------|
+| **Visual** (default) | Text box: "Documento firmado digitalmente" | Limited |
+| **Cryptographic** | P12/PKCS12 digital signature | Full (eIDAS compliant) |
 
-## Prerequisites
+When a certificate is configured, Record+ automatically uses cryptographic signatures.
 
-### 1. Obtain a Digital Certificate
+## ACA Certificate (Recommended for Lawyers)
 
-You need a .p12 or .pfx certificate file. Options:
+### What is ACA?
 
-**Spanish FNMT Certificate (Recommended for Spain)**
-- Request from: https://www.sede.fnmt.gob.es/
-- Requires Spanish DNI/NIE
-- Free for individuals
+ACA (Autoridad de Certificación de la Abogacía) is the digital certificate authority for Spanish lawyers, operated by the Consejo General de la Abogacía Española.
 
-**Other Certificate Authorities**
-- DigiCert
-- GlobalSign
-- Sectigo
-- Any CA that issues code signing or document signing certificates
+**Two certificate types available:**
 
-### 2. Install Required Packages
+| Type | Format | Signature Level | Best For |
+|------|--------|-----------------|----------|
+| **ACA Software** | `.p12` file | Advanced | Invoices, general documents |
+| **ACA Plus Cualificada** | Smart card | Qualified (= handwritten) | Court submissions |
 
-```bash
-npm install @signpdf/signpdf @signpdf/signer-p12 @signpdf/placeholder-pdf-lib node-forge
-```
+For Record+ invoicing, the **ACA Software** certificate is sufficient and easier to integrate.
+
+### Obtaining Your ACA Certificate
+
+1. Log in to your Colegio de Abogados portal
+2. Navigate to the ACA certificate section
+3. Download your certificate as `.p12` format
+4. **Important:** Remember your password - it's set during download and cannot be recovered
+
+More info: https://www.abogacia.es/faq/acaplus/
 
 ## Configuration Steps
 
-### 1. Upload Certificate
-
-Place your .p12/.pfx certificate file in a secure location on the server:
+### 1. Upload Certificate to Server
 
 ```bash
-# Create certificates directory
+# Create certificates directory (if not exists)
 mkdir -p /home/appuser/data/certificates
 
-# Copy your certificate (example)
-cp /path/to/your/certificate.p12 /home/appuser/data/certificates/firma.p12
+# Upload your certificate (via SCP, SFTP, etc.)
+scp your-certificate.p12 appuser@server:/home/appuser/data/certificates/firma.p12
 
-# Secure permissions
+# Secure permissions (important!)
 chmod 600 /home/appuser/data/certificates/firma.p12
 ```
 
 ### 2. Configure in Application
 
-Navigate to **Configuración** in the application and set:
-
-- **Ruta del Certificado**: `/home/appuser/data/certificates/firma.p12`
-- **Contraseña del Certificado**: Your certificate password
-
-Click **Guardar Configuración**.
+1. Navigate to **Configuración** in Record+
+2. In the "Certificado Digital ACA" section:
+   - **Ruta del Certificado**: `/home/appuser/data/certificates/firma.p12`
+   - **Contraseña del Certificado**: Your certificate password
+3. Click **Probar Certificado** to verify
+4. Click **Guardar Configuración**
 
 ### 3. Verify Configuration
 
-The application will automatically switch to cryptographic signatures when:
-1. Certificate path is configured (non-empty)
-2. Certificate file exists and is readable
+After saving, the "Probar Certificado" button should show:
+- Certificate holder name (CN)
+- Organization
+- Issuer
+- Validity dates
+- Days until expiration
 
-You can verify by generating a test document and checking the signature in Adobe Reader.
+If successful, all future documents (minutas, suplidos) will be cryptographically signed.
 
-## Implementation Details
+## Verifying Signatures
 
-### Strategy Pattern
+### In Adobe Reader
 
-The SignatureService uses a strategy pattern:
+1. Open a signed PDF
+2. Look for the signature panel (blue ribbon icon)
+3. Click to see signature details
+4. Should show: "Signed by [Your Name]" with certificate chain
 
-```javascript
-// Auto-selects strategy based on certificate configuration
-if (certificatePath && certificatePath.trim() !== '') {
-  this.strategy = new CryptoSignatureStrategy(certificatePath, certificatePassword);
-} else {
-  this.strategy = new VisualSignatureStrategy();
-}
-```
+### In Preview (macOS)
 
-### CryptoSignatureStrategy Implementation
-
-The `CryptoSignatureStrategy` class in `src/server/services/signatureService.js` contains commented placeholder code showing the implementation:
-
-```javascript
-async sign(pdfBuffer) {
-  // Load certificate
-  const certBuffer = readFileSync(this.certificatePath);
-
-  // Load and prepare PDF
-  const pdfDoc = await PDFDocument.load(pdfBuffer);
-
-  // Add signature placeholder
-  pdflibAddPlaceholder({
-    pdfDoc,
-    reason: 'Factura ARAG - Firma Digital',
-    contactInfo: 'despacho@example.com',
-    name: 'Despacho de Abogados',
-    location: 'Málaga, España',
-  });
-
-  // Create signer
-  const signer = new P12Signer(certBuffer, {
-    passphrase: this.certificatePassword,
-  });
-
-  // Sign PDF
-  return await signpdf.sign(await pdfDoc.save(), signer);
-}
-```
+1. Open PDF
+2. Go to Tools > Show Inspector > Signatures
+3. View signature details
 
 ## Troubleshooting
 
-### "Firma criptográfica no disponible" Error
+### "Certificado no encontrado"
 
-This means:
-1. Packages are not installed (`npm install @signpdf/signpdf ...`)
-2. Or the sign() method throws because implementation is not yet enabled
+**Cause:** File path is incorrect or file doesn't exist
 
-**Solution**: Uncomment the implementation in `CryptoSignatureStrategy.sign()` after installing packages.
+**Solution:**
+```bash
+# Verify file exists
+ls -la /home/appuser/data/certificates/firma.p12
 
-### Certificate Password Incorrect
+# Check permissions
+stat /home/appuser/data/certificates/firma.p12
+```
 
-Error: "PKCS#12 MAC could not be verified"
+### "Contraseña del certificado incorrecta"
 
-**Solution**: Verify the certificate password is correct.
+**Cause:** Wrong password entered
 
-### Certificate Expired
+**Solution:**
+- Verify the password used when downloading the certificate
+- Passwords are case-sensitive
+- If forgotten, you may need to revoke and request a new certificate
 
-Error: "Certificate has expired"
+### "Certificate has expired"
 
-**Solution**: Renew your certificate with the issuing CA.
+**Cause:** ACA certificates are valid for 2-4 years
 
-### Signature Not Showing in Adobe
+**Solution:**
+1. Log in to your Colegio de Abogados portal
+2. Renew your ACA certificate
+3. Download the new `.p12` file
+4. Update the certificate file on server
+5. Update password in Configuration if changed
 
-- Ensure the PDF is not modified after signing
-- Check Adobe Reader trust settings
-- Verify certificate chain is complete
+### Signature Not Trusted in Adobe
 
-## Security Considerations
+**Cause:** Adobe doesn't trust the ACA root certificate by default
 
-1. **Never commit certificates to git** - Add `*.p12` and `*.pfx` to .gitignore
-2. **Secure file permissions** - `chmod 600` on certificate files
-3. **Use strong passwords** - Certificate passwords should be complex
-4. **Backup certificates** - Store backups in secure location
-5. **Monitor expiration** - Set reminders for certificate renewal
+**Solution:**
+1. In Adobe Reader: Edit > Preferences > Signatures > Identities & Trusted Certificates
+2. Click "More..." and import the ACA root certificate
+3. Or configure Adobe to trust the European Trust List (EUTL)
 
-## Fallback Behavior
+## Security Best Practices
 
-If cryptographic signing fails for any reason (missing certificate, wrong password, etc.):
-- The application will throw an error
-- Documents will NOT be signed
-- Visual signature will NOT be used as fallback (to avoid confusion)
+1. **Never commit certificates to git** - `.gitignore` already excludes `data/certificates/*`
+2. **Secure file permissions** - Always `chmod 600` on certificate files
+3. **Use strong passwords** - ACA password should be complex
+4. **Backup certificates** - Store encrypted backup in secure location
+5. **Monitor expiration** - Application shows days until expiration
+6. **Limit access** - Only the application user should read the certificate file
 
-To use visual signature, clear the certificate path in Configuration.
+## Certificate Expiration Warnings
+
+Record+ shows warnings when:
+- Certificate expires within 30 days (yellow warning)
+- Certificate is expired (red error, signing will fail)
+
+## Technical Details
+
+### Signature Metadata
+
+Each signed PDF includes:
+- **Reason:** "Factura ARAG - Firma Digital ACA"
+- **Location:** "Málaga, España"
+- **Name:** Certificate CN (your name)
+- **Timestamp:** Signing date/time
+
+### Dependencies
+
+```json
+{
+  "@signpdf/signpdf": "^3.x",
+  "@signpdf/signer-p12": "^3.x",
+  "@signpdf/placeholder-pdf-lib": "^3.x",
+  "node-forge": "^1.x"
+}
+```
+
+### Strategy Pattern
+
+The `SignatureService` automatically selects the signing strategy:
+
+```javascript
+// If certificate configured → CryptoSignatureStrategy
+// Otherwise → VisualSignatureStrategy (text box)
+```
+
+### Fallback Behavior
+
+If cryptographic signing fails:
+- An error is thrown
+- Document is NOT signed
+- Visual signature is NOT used as fallback (to avoid confusion)
+
+To revert to visual signatures, clear the certificate path in Configuration.
+
+## API Reference
+
+### Test Certificate Endpoint
+
+```
+POST /api/config/test-certificate
+Content-Type: application/json
+
+{
+  "path": "/home/appuser/data/certificates/firma.p12",
+  "password": "your-password"
+}
+```
+
+**Response (success):**
+```json
+{
+  "valid": true,
+  "cn": "NOMBRE APELLIDO APELLIDO",
+  "organization": "COLEGIO DE ABOGADOS DE MALAGA",
+  "issuer": "ACA",
+  "validFrom": "2024-01-15T00:00:00.000Z",
+  "validTo": "2026-01-15T23:59:59.000Z",
+  "isExpired": false,
+  "daysUntilExpiration": 714
+}
+```
+
+**Response (error):**
+```json
+{
+  "valid": false,
+  "error": "Contraseña del certificado incorrecta"
+}
+```
