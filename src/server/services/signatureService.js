@@ -270,15 +270,90 @@ class CryptoSignatureStrategy extends SignatureStrategy {
       throw new Error(`Error al leer el certificado P12: ${err.message}`);
     }
 
-    // Extract certificate from bags
+    // Extract certificate from bags - try multiple approaches for different P12 formats
+    // ACA certificates may store certs differently than standard P12 files
+    let cert = null;
+
+    // Approach 1: Standard certBag extraction
     const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
     const certBag = certBags[forge.pki.oids.certBag];
 
-    if (!certBag || certBag.length === 0) {
-      throw new Error("No se encontró certificado en el archivo P12");
+    if (certBag && certBag.length > 0) {
+      // Try direct cert property first
+      if (certBag[0].cert) {
+        cert = certBag[0].cert;
+      } else if (certBag[0].asn1) {
+        // Some P12 files have ASN1 that needs conversion
+        try {
+          cert = forge.pki.certificateFromAsn1(certBag[0].asn1);
+        } catch {
+          // ASN1 conversion failed, try next approach
+        }
+      }
     }
 
-    const cert = certBag[0].cert;
+    // Approach 2: Try getting all bags and find certificate
+    if (!cert) {
+      const allBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+      for (const bagType in allBags) {
+        const bags = allBags[bagType];
+        if (Array.isArray(bags)) {
+          for (const bag of bags) {
+            if (bag.cert) {
+              cert = bag.cert;
+              break;
+            }
+            if (bag.asn1) {
+              try {
+                cert = forge.pki.certificateFromAsn1(bag.asn1);
+                break;
+              } catch {
+                // Continue to next bag
+              }
+            }
+          }
+        }
+        if (cert) break;
+      }
+    }
+
+    // Approach 3: Try to get safe bags directly (for non-standard P12)
+    if (!cert) {
+      try {
+        const safeContents = p12.safeContents;
+        if (safeContents) {
+          for (const safeContent of safeContents) {
+            if (safeContent.safeBags) {
+              for (const safeBag of safeContent.safeBags) {
+                if (safeBag.cert) {
+                  cert = safeBag.cert;
+                  break;
+                }
+                if (safeBag.type === forge.pki.oids.certBag && safeBag.asn1) {
+                  try {
+                    cert = forge.pki.certificateFromAsn1(safeBag.asn1);
+                    break;
+                  } catch {
+                    // Continue
+                  }
+                }
+              }
+            }
+            if (cert) break;
+          }
+        }
+      } catch {
+        // Safe contents access failed
+      }
+    }
+
+    if (!cert) {
+      throw new Error(
+        "No se pudo extraer el certificado del archivo P12. " +
+          "El formato del certificado ACA puede no ser compatible. " +
+          "Verifique que el archivo .p12 es válido."
+      );
+    }
 
     // Extract subject fields
     const cnAttr = cert.subject.getField("CN");
