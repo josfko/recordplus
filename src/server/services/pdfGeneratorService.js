@@ -369,76 +369,190 @@ export class PDFGeneratorService {
     const outputPath = join(outputDir, filename);
 
     return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ size: "A4", margin: 50 });
+      const doc = new PDFDocument({ size: "A4", margin: 60 });
       const stream = createWriteStream(outputPath);
 
       doc.pipe(stream);
 
-      // Header
-      doc
-        .fontSize(18)
-        .font("Helvetica-Bold")
-        .text("HOJA DE ENCARGO PROFESIONAL", { align: "center" });
-      doc.moveDown(2);
+      const pageWidth = doc.page.width;
+      const leftMargin = 60;
+      const rightMargin = pageWidth - 60;
+      const contentWidth = rightMargin - leftMargin;
 
-      // Client details
       const clientName = caseData.client_name || caseData.clientName;
       const reference = caseData.internal_reference || caseData.internalReference;
 
-      doc.fontSize(12).font("Helvetica");
-      doc.text(`Cliente: ${clientName}`);
-      doc.text(`Referencia: ${reference}`);
-      doc.text(`Fecha: ${this.formatDate(new Date())}`);
+      // ═══════════════════════════════════════════════════════════════
+      // DOCUMENT HEADER
+      // ═══════════════════════════════════════════════════════════════
+
+      doc.fontSize(18)
+         .font('Helvetica-Bold')
+         .fillColor('#1a1a1a')
+         .text('HOJA DE ENCARGO PROFESIONAL', leftMargin, 60, {
+           width: contentWidth,
+           align: 'center'
+         });
+
+      // Subtle underline
+      doc.moveTo(leftMargin + contentWidth * 0.25, 85)
+         .lineTo(leftMargin + contentWidth * 0.75, 85)
+         .strokeColor('#cccccc')
+         .lineWidth(0.5)
+         .stroke();
+
+      doc.fillColor('#000000');
+      doc.y = 105;
+
+      // ═══════════════════════════════════════════════════════════════
+      // CLIENT INFORMATION SECTION
+      // ═══════════════════════════════════════════════════════════════
+
+      this.drawSectionHeader(doc, 'DATOS DEL CLIENTE', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
+
+      // Client info - simple layout
+      const col1X = leftMargin;
+      const col2X = leftMargin + contentWidth / 2;
+      let infoY = doc.y;
+
+      doc.fontSize(9).font('Helvetica').fillColor('#666666');
+      doc.text('Cliente:', col1X, infoY);
+      doc.fillColor('#1a1a1a').font('Helvetica-Bold');
+      doc.text(clientName, col1X + 50, infoY, { width: contentWidth / 2 - 60 });
+
+      doc.font('Helvetica').fillColor('#666666');
+      doc.text('Referencia:', col2X, infoY);
+      doc.fillColor('#1a1a1a').font('Helvetica-Bold');
+      doc.text(reference, col2X + 70, infoY);
+
+      infoY += 20;
+      doc.font('Helvetica').fillColor('#666666');
+      doc.text('Fecha:', col1X, infoY);
+      doc.fillColor('#1a1a1a').font('Helvetica-Bold');
+      doc.text(this.formatDate(new Date()), col1X + 50, infoY);
+
+      doc.fillColor('#000000');
+      doc.y = infoY + 35;
+
+      // ═══════════════════════════════════════════════════════════════
+      // SERVICES SECTION
+      // ═══════════════════════════════════════════════════════════════
+
+      this.drawSectionHeader(doc, 'SERVICIOS PROFESIONALES CONTRATADOS', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
+
+      doc.fontSize(10)
+         .font('Helvetica')
+         .fillColor('#333333')
+         .text(services, leftMargin, doc.y, {
+           width: contentWidth,
+           align: 'justify',
+           lineGap: 4
+         });
+
       doc.moveDown(2);
 
-      // Services section
-      doc.font("Helvetica-Bold").text("SERVICIOS CONTRATADOS:");
-      doc.moveDown(0.5);
+      // ═══════════════════════════════════════════════════════════════
+      // FEES SECTION
+      // ═══════════════════════════════════════════════════════════════
 
-      // Separator line
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(0.5);
+      this.drawSectionHeader(doc, 'HONORARIOS PROFESIONALES', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
 
-      doc.font("Helvetica").text(services, {
-        width: 500,
-        align: "left",
-      });
+      doc.fontSize(10)
+         .font('Helvetica')
+         .fillColor('#666666')
+         .text('Importe total acordado:', leftMargin, doc.y);
+
+      doc.font('Helvetica-Bold')
+         .fillColor('#1a1a1a')
+         .text(this.formatCurrency(fees), leftMargin + 130, doc.y - 12);
+
       doc.moveDown(2);
 
-      // Fees section
-      doc.font("Helvetica-Bold").text("HONORARIOS PROFESIONALES:");
-      doc.moveDown(0.5);
+      // ═══════════════════════════════════════════════════════════════
+      // TERMS & CONDITIONS
+      // ═══════════════════════════════════════════════════════════════
 
-      // Separator line
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(0.5);
+      this.drawSectionHeader(doc, 'CONDICIONES GENERALES', leftMargin, doc.y, contentWidth);
+      doc.moveDown(0.8);
 
-      doc.font("Helvetica");
-      doc.text("Importe acordado:", 50, doc.y);
-      doc.text(this.formatCurrency(fees), 450, doc.y - 14, { align: "right" });
-      doc.moveDown(2);
+      doc.fontSize(9)
+         .font('Helvetica')
+         .fillColor('#6c757d')
+         .text(
+           '1. El cliente acepta expresamente los términos del presente encargo profesional y autoriza ' +
+           'al abogado a actuar en su nombre y representación en el asunto objeto del encargo.',
+           leftMargin, doc.y,
+           { width: contentWidth, align: 'justify', lineGap: 3 }
+         );
 
-      // Terms section
-      doc.font("Helvetica-Bold").text("CONDICIONES:");
-      doc.moveDown(0.5);
-
-      doc.font("Helvetica").fontSize(10);
+      doc.moveDown(0.6);
       doc.text(
-        "El cliente acepta los términos y condiciones del presente encargo profesional. " +
-        "Los honorarios indicados no incluyen suplidos ni gastos judiciales que pudieran derivarse. " +
-        "El presente documento tiene validez como acuerdo de servicios entre las partes.",
-        { width: 500 }
+        '2. Los honorarios indicados no incluyen suplidos, tasas judiciales ni gastos de terceros ' +
+        'que pudieran derivarse de la tramitación del asunto.',
+        { width: contentWidth, align: 'justify', lineGap: 3 }
       );
-      doc.moveDown(3);
 
-      // Signature lines
-      doc.fontSize(12);
-      doc.text("_______________________________", 50, doc.y);
-      doc.text("_______________________________", 300, doc.y - 14);
-      doc.moveDown(0.5);
-      doc.fontSize(10);
-      doc.text("Firma del Cliente", 80, doc.y);
-      doc.text("Firma del Abogado", 340, doc.y - 12);
+      doc.moveDown(0.6);
+      doc.text(
+        '3. El presente documento tiene plena validez como acuerdo de servicios profesionales entre las partes.',
+        { width: contentWidth, align: 'justify', lineGap: 3 }
+      );
+
+      doc.y += 30;
+
+      // ═══════════════════════════════════════════════════════════════
+      // SIGNATURES SECTION
+      // ═══════════════════════════════════════════════════════════════
+
+      const signatureY = doc.y + 20;
+      const signatureWidth = (contentWidth - 60) / 2;
+
+      // Client signature
+      doc.moveTo(leftMargin, signatureY + 40)
+         .lineTo(leftMargin + signatureWidth, signatureY + 40)
+         .strokeColor('#999999')
+         .lineWidth(0.5)
+         .stroke();
+
+      doc.fontSize(9)
+         .font('Helvetica')
+         .fillColor('#666666')
+         .text('Firma del Cliente', leftMargin, signatureY + 48, {
+           width: signatureWidth,
+           align: 'center'
+         });
+
+      // Lawyer signature
+      const lawyerX = leftMargin + signatureWidth + 60;
+      doc.moveTo(lawyerX, signatureY + 40)
+         .lineTo(lawyerX + signatureWidth, signatureY + 40)
+         .strokeColor('#999999')
+         .lineWidth(0.5)
+         .stroke();
+
+      doc.fontSize(9)
+         .font('Helvetica')
+         .fillColor('#666666')
+         .text('Firma del Abogado', lawyerX, signatureY + 48, {
+           width: signatureWidth,
+           align: 'center'
+         });
+
+      // ═══════════════════════════════════════════════════════════════
+      // FOOTER
+      // ═══════════════════════════════════════════════════════════════
+
+      doc.fontSize(8)
+         .fillColor('#999999')
+         .font('Helvetica')
+         .text(
+           reference + ' · ' + this.formatDate(new Date()),
+           leftMargin, doc.page.height - 50,
+           { width: contentWidth, align: 'center' }
+         );
 
       doc.end();
 

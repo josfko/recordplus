@@ -97,7 +97,7 @@ export class HojaEncargoModal {
                 id="hoja-services"
                 rows="4"
                 placeholder="Describe los servicios a prestar al cliente..."
-              ></textarea>
+              >${c.services || ""}</textarea>
               <span class="form-hint">Descripción de los servicios legales a prestar</span>
             </div>
 
@@ -111,6 +111,7 @@ export class HojaEncargoModal {
                   min="0"
                   step="0.01"
                   placeholder="0.00"
+                  value="${this.calculateTotalFees()}"
                 >
                 <span class="input-suffix">EUR</span>
               </div>
@@ -427,6 +428,16 @@ export class HojaEncargoModal {
   }
 
   // UI Helper Methods
+
+  /**
+   * Calculate total fees from baseFee + provision
+   */
+  calculateTotalFees() {
+    const baseFee = parseFloat(this.caseData.baseFee) || 0;
+    const provision = parseFloat(this.caseData.provision) || 0;
+    const total = baseFee + provision;
+    return total > 0 ? total.toFixed(2) : "";
+  }
 
   showWorkflowSection() {
     this.modal.querySelector("#form-section").style.display = "none";

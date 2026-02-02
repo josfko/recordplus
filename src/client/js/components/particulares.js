@@ -5,7 +5,6 @@
 
 import { api } from "../api.js";
 import { showToast, formatDate } from "../app.js";
-import { HojaEncargoModal } from "./hojaEncargoModal.js";
 
 export class ParticularesView {
   constructor(container, caseId) {
@@ -287,49 +286,12 @@ export class ParticularesView {
 
                 <div class="divider-gradient"></div>
 
-                <!-- Action Buttons -->
-                <div class="action-buttons">
-                  <button class="btn btn-action" id="btn-export-pdf">
-                    <div class="btn-action-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                      </svg>
-                    </div>
-                    <span>Exportar PDF</span>
-                  </button>
-                  <button class="btn btn-action" id="btn-sign">
-                    <div class="btn-action-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 19l7-7 3 3-7 7-3-3z"/>
-                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
-                        <path d="M2 2l7.586 7.586"/>
-                        <circle cx="11" cy="11" r="2"/>
-                      </svg>
-                    </div>
-                    <span>Firma Digital</span>
-                  </button>
-                  <button class="btn btn-action-primary" id="btn-send">
-                    <div class="btn-action-icon-primary">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 2L11 13"/>
-                        <path d="M22 2l-7 20-4-9-9-4 20-7z"/>
-                      </svg>
-                    </div>
-                    <span>Enviar a Cliente</span>
-                  </button>
-                </div>
+                <!-- Document Status Section -->
+                ${this.renderDocumentStatus()}
               </div>
 
               <!-- Card Footer -->
-              <div class="card-footer-green">
-                <div class="status-indicator">
-                  <span class="status-dot status-dot-green"></span>
-                  <span>Listo para enviar</span>
-                </div>
-                <span class="template-name mono">PLANTILLA_PARTICULAR_V2.PDF</span>
-              </div>
+              ${this.renderDocumentFooter()}
             </div>
           </div>
 
@@ -491,6 +453,445 @@ export class ParticularesView {
     }
   }
 
+  /**
+   * Get the latest generated document from history
+   */
+  getLatestDocument() {
+    const docs = this.history?.documents || [];
+    if (docs.length === 0) return null;
+    // Sort by createdAt descending and return the most recent
+    const sorted = [...docs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return sorted[0];
+  }
+
+  /**
+   * Get the latest successfully sent email from history
+   */
+  getLatestEmail() {
+    const emails = this.history?.emails || [];
+    const sent = emails.filter(e => e.status === 'SENT');
+    if (sent.length === 0) return null;
+    // Sort by sentAt descending and return the most recent
+    const sorted = [...sent].sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+    return sorted[0];
+  }
+
+  /**
+   * Render the document status section based on document lifecycle state
+   */
+  renderDocumentStatus() {
+    const latestDoc = this.getLatestDocument();
+    const latestEmail = this.getLatestEmail();
+    const isArchived = this.caseData.state === "ARCHIVADO";
+
+    // State 1: No document generated
+    if (!latestDoc) {
+      return `
+        <div class="document-status">
+          <div class="document-empty-state">
+            <div class="document-empty-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+            </div>
+            <p class="document-empty-text">No se ha generado ningún documento todavía</p>
+            ${!isArchived ? `
+              <button class="btn btn-doc-generate" id="btn-generate">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Generar Documento
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    // Document exists - show status steps
+    const isSigned = latestDoc.signed;
+    const isSent = !!latestEmail;
+
+    return `
+      <div class="document-status">
+        <span class="document-status-title">Estado del Documento</span>
+        
+        <div class="status-steps">
+          <!-- Generated Step - Always complete if we have a doc -->
+          <div class="status-step status-step-completed">
+            <div class="status-step-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="status-step-content">
+              <span class="status-step-label">Generado</span>
+              <span class="status-step-meta">${this.formatTimelineDate(latestDoc.createdAt)}</span>
+            </div>
+          </div>
+
+          <!-- Signed Step -->
+          <div class="status-step ${isSigned ? 'status-step-completed' : 'status-step-pending'}">
+            <div class="status-step-icon">
+              ${isSigned ? `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ` : `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                </svg>
+              `}
+            </div>
+            <div class="status-step-content">
+              <span class="status-step-label">${isSigned ? 'Firmado' : 'Sin firmar'}</span>
+              ${isSigned && latestDoc.signedAt ? `<span class="status-step-meta">${this.formatTimelineDate(latestDoc.signedAt)}</span>` : ''}
+            </div>
+          </div>
+
+          <!-- Sent Step -->
+          <div class="status-step ${isSent ? 'status-step-completed' : 'status-step-pending'}">
+            <div class="status-step-icon">
+              ${isSent ? `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ` : `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                </svg>
+              `}
+            </div>
+            <div class="status-step-content">
+              <span class="status-step-label">${isSent ? 'Enviado' : 'No enviado'}</span>
+              ${isSent ? `<span class="status-step-email">${latestEmail.toAddress}</span>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons based on state -->
+        <div class="document-actions">
+          <!-- Download is always available -->
+          <button class="btn btn-doc-download" id="btn-download" data-doc-id="${latestDoc.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Descargar
+          </button>
+
+          ${!isArchived ? `
+            ${!isSigned ? `
+              <!-- Sign button only if not signed -->
+              <button class="btn btn-doc-sign" id="btn-sign" data-doc-id="${latestDoc.id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                </svg>
+                Firmar
+              </button>
+            ` : ''}
+
+            <!-- Send/Resend button -->
+            <button class="btn btn-doc-send" id="btn-send">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 2L11 13"/>
+                <path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+              </svg>
+              ${isSent ? 'Reenviar' : 'Enviar'}
+            </button>
+
+            <!-- Regenerate button -->
+            <button class="btn btn-doc-regenerate" id="btn-regenerate">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              Regenerar
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render the card footer based on document state
+   */
+  renderDocumentFooter() {
+    const latestDoc = this.getLatestDocument();
+    const latestEmail = this.getLatestEmail();
+
+    let statusText = 'Pendiente de generación';
+    let statusClass = 'status-dot-gray';
+
+    if (latestDoc) {
+      if (latestEmail) {
+        statusText = 'Enviado al cliente';
+        statusClass = 'status-dot-green';
+      } else if (latestDoc.signed) {
+        statusText = 'Firmado, pendiente de envío';
+        statusClass = 'status-dot-green';
+      } else {
+        statusText = 'Generado, pendiente de firma';
+        statusClass = 'status-dot-indigo';
+      }
+    }
+
+    const filename = latestDoc?.filename || 'PLANTILLA_PARTICULAR_V2.PDF';
+
+    return `
+      <div class="card-footer-green">
+        <div class="status-indicator">
+          <span class="status-dot ${statusClass}"></span>
+          <span>${statusText}</span>
+        </div>
+        <span class="template-name mono">${filename}</span>
+      </div>
+    `;
+  }
+
+  /**
+   * Handle document generation - direct API call
+   */
+  async handleGenerateDocument() {
+    // Get current form values
+    const services = document.getElementById("services")?.value?.trim();
+    const baseFee = parseFloat(document.getElementById("base-fee")?.value) || 0;
+    const provision = parseFloat(document.getElementById("provision")?.value) || 0;
+    const totalFees = baseFee + provision;
+
+    // Validation
+    if (!services) {
+      showToast("Los servicios son obligatorios", "error");
+      document.getElementById("services")?.focus();
+      return;
+    }
+
+    if (totalFees <= 0) {
+      showToast("Los honorarios deben ser mayores que 0", "error");
+      document.getElementById("base-fee")?.focus();
+      return;
+    }
+
+    // Show loading state
+    const btn = document.getElementById("btn-generate") || document.getElementById("btn-regenerate");
+    const originalText = btn?.innerHTML;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `
+        <svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+        </svg>
+        Generando...
+      `;
+    }
+
+    try {
+      const result = await api.generateHojaEncargo(this.caseId, services, totalFees);
+      
+      if (result.success) {
+        showToast("Documento generado correctamente", "success");
+        // Refresh the view to show new state
+        await this.render();
+      }
+    } catch (error) {
+      showToast(`Error: ${error.message}`, "error");
+      // Restore button
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+  }
+
+  /**
+   * Handle document signing - direct API call
+   */
+  async handleSignDocument() {
+    const latestDoc = this.getLatestDocument();
+    if (!latestDoc) {
+      showToast("No hay documento para firmar", "error");
+      return;
+    }
+
+    // Show loading state
+    const btn = document.getElementById("btn-sign");
+    const originalText = btn?.innerHTML;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `
+        <svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+        </svg>
+        Firmando...
+      `;
+    }
+
+    try {
+      const result = await api.signHojaEncargo(this.caseId, latestDoc.id);
+      
+      if (result.success) {
+        showToast("Documento firmado correctamente", "success");
+        // Refresh the view to show new state
+        await this.render();
+      }
+    } catch (error) {
+      showToast(`Error al firmar: ${error.message}`, "error");
+      // Restore button
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+  }
+
+  /**
+   * Open simple email modal for sending document
+   */
+  openSendEmailModal() {
+    const latestDoc = this.getLatestDocument();
+    if (!latestDoc) {
+      showToast("No hay documento para enviar", "error");
+      return;
+    }
+
+    // Create simple email modal
+    const modal = document.createElement("div");
+    modal.className = "modal-overlay";
+    modal.innerHTML = `
+      <div class="modal" style="max-width: 400px;">
+        <div class="modal-header">
+          <div class="modal-header-content">
+            <div class="icon-box icon-box-green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 2L11 13"/>
+                <path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="modal-title">Enviar Documento</h2>
+              <p class="modal-subtitle">Hoja de Encargo</p>
+            </div>
+          </div>
+          <button class="btn-icon modal-close" id="email-modal-close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Email del Cliente *</label>
+            <input
+              type="email"
+              class="form-input"
+              id="send-email-input"
+              placeholder="cliente@ejemplo.com"
+              value="${this.caseData.clientEmail || ""}"
+            >
+            <span class="form-hint">El documento se enviará a esta dirección</span>
+          </div>
+
+          ${!latestDoc.signed ? `
+            <div class="form-hint" style="color: #f59e0b; margin-top: var(--spacing-3);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 4px;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              El documento no está firmado digitalmente
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="email-modal-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="email-modal-send" style="background: #059669; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 2L11 13"/>
+              <path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+            </svg>
+            Enviar
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      modal.classList.add("modal-visible");
+    });
+
+    // Focus email input
+    setTimeout(() => {
+      document.getElementById("send-email-input")?.focus();
+    }, 100);
+
+    // Event handlers
+    const closeModal = () => {
+      modal.classList.remove("modal-visible");
+      setTimeout(() => modal.remove(), 200);
+    };
+
+    modal.querySelector("#email-modal-close")?.addEventListener("click", closeModal);
+    modal.querySelector("#email-modal-cancel")?.addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    modal.querySelector("#email-modal-send")?.addEventListener("click", async () => {
+      const email = document.getElementById("send-email-input")?.value?.trim();
+      
+      // Validate email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        showToast("Introduce un email válido", "error");
+        document.getElementById("send-email-input")?.focus();
+        return;
+      }
+
+      // Show loading
+      const sendBtn = modal.querySelector("#email-modal-send");
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = `
+        <svg class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+        </svg>
+        Enviando...
+      `;
+
+      try {
+        const result = await api.sendHojaEncargo(this.caseId, latestDoc.id, email);
+        
+        if (result.success) {
+          showToast("Documento enviado correctamente", "success");
+          closeModal();
+          // Refresh the view to show new state
+          await this.render();
+        }
+      } catch (error) {
+        showToast(`Error al enviar: ${error.message}`, "error");
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 2L11 13"/>
+            <path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
+          Enviar
+        `;
+      }
+    });
+  }
+
   formatDateInput(dateStr) {
     if (!dateStr) return "--/--/----";
     const date = new Date(dateStr);
@@ -565,22 +966,39 @@ export class ParticularesView {
       .getElementById("provision")
       ?.addEventListener("input", () => this.updateTotals());
 
-    // Open Hoja de Encargo modal (Export PDF, Sign, Send buttons)
-    const openModal = () => {
-      if (this.caseData.state === "ARCHIVADO") {
-        showToast("No se pueden generar documentos en expedientes archivados", "error");
-        return;
-      }
-      const modal = new HojaEncargoModal(this.caseData, this.config, async () => {
-        // Refresh the view when modal closes
-        await this.render();
-      });
-      modal.open();
-    };
+    // === Document Action Handlers ===
 
-    document.getElementById("btn-export-pdf")?.addEventListener("click", openModal);
-    document.getElementById("btn-sign")?.addEventListener("click", openModal);
-    document.getElementById("btn-send")?.addEventListener("click", openModal);
+    // Generate Document - Direct action, no modal
+    document.getElementById("btn-generate")?.addEventListener("click", async () => {
+      await this.handleGenerateDocument();
+    });
+
+    // Download Document - Direct download
+    document.getElementById("btn-download")?.addEventListener("click", () => {
+      const btn = document.getElementById("btn-download");
+      const docId = btn?.dataset.docId;
+      if (docId) {
+        const downloadUrl = api.getDocumentDownloadUrl(docId);
+        window.open(downloadUrl, "_blank");
+      }
+    });
+
+    // Sign Document - Direct action, no modal
+    document.getElementById("btn-sign")?.addEventListener("click", async () => {
+      await this.handleSignDocument();
+    });
+
+    // Send Document - Opens simple email modal
+    document.getElementById("btn-send")?.addEventListener("click", () => {
+      this.openSendEmailModal();
+    });
+
+    // Regenerate Document - Confirm then regenerate
+    document.getElementById("btn-regenerate")?.addEventListener("click", async () => {
+      if (confirm("¿Regenerar el documento? Esto creará una nueva versión.")) {
+        await this.handleGenerateDocument();
+      }
+    });
 
     // Archive case
     document
