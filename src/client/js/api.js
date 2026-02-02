@@ -1,11 +1,61 @@
 /**
  * API Client - Fetch wrapper for backend communication
  * Task 7.3 - Requirements: All
+ *
+ * Environment-aware: Automatically detects localhost vs production
+ * and uses the appropriate API URL.
  */
 
+// Load configuration (may not exist in development)
+let config = { API_URL: null, DEBUG: false };
+try {
+  const imported = await import("../config.js");
+  config = imported.config || config;
+} catch {
+  // config.js not found - will use /api for same-origin requests
+}
+
 class ApiClient {
-  constructor(baseUrl = "/api") {
-    this.baseUrl = baseUrl;
+  constructor() {
+    this.baseUrl = this._detectBaseUrl();
+  }
+
+  /**
+   * Detect the appropriate base URL based on environment
+   * @returns {string} Base URL for API requests
+   * @private
+   */
+  _detectBaseUrl() {
+    const hostname = window.location.hostname;
+
+    // Local development: use same-origin /api
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      if (config.DEBUG) {
+        console.log("[API] Development mode: using /api");
+      }
+      return "/api";
+    }
+
+    // Production: use configured API_URL
+    if (config.API_URL) {
+      // Ensure URL doesn't have trailing slash and add /api if needed
+      let url = config.API_URL.replace(/\/+$/, "");
+      if (!url.endsWith("/api")) {
+        url = `${url}/api`;
+      }
+      if (config.DEBUG) {
+        console.log(`[API] Production mode: using ${url}`);
+      }
+      return url;
+    }
+
+    // Fallback: warn and use /api (will likely fail on Cloudflare Pages)
+    console.warn(
+      "[API] No API_URL configured for production. " +
+        "Create config.js with your Cloudflare Tunnel URL. " +
+        "See config.example.js for template.",
+    );
+    return "/api";
   }
 
   /**
@@ -17,7 +67,8 @@ class ApiClient {
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
 
-    const config = {
+    const fetchConfig = {
+      credentials: "include", // Send cookies for Zero Trust auth
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
@@ -26,7 +77,17 @@ class ApiClient {
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await fetch(url, fetchConfig);
+
+      // Check for Zero Trust redirect (HTML instead of JSON)
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        const sessionError = new Error(
+          "Sesión expirada. Por favor, recargue la página.",
+        );
+        sessionError.code = "SESSION_EXPIRED";
+        throw sessionError;
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -386,9 +447,20 @@ class ApiClient {
     try {
       const response = await fetch(url, {
         method: "POST",
+        credentials: "include", // Send cookies for Zero Trust auth
         body: formData,
         // Note: Don't set Content-Type header, let browser set it with boundary for multipart
       });
+
+      // Check for Zero Trust redirect (HTML instead of JSON)
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        const sessionError = new Error(
+          "Sesión expirada. Por favor, recargue la página.",
+        );
+        sessionError.code = "SESSION_EXPIRED";
+        throw sessionError;
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

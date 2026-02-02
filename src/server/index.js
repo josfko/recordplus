@@ -17,8 +17,46 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// CORS configuration for Cloudflare Pages + Tunnel deployment
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (same-origin, curl, Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Allow localhost for development
+    if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+      return callback(null, true);
+    }
+
+    // Allow Cloudflare Pages domains
+    if (origin.includes(".pages.dev")) {
+      return callback(null, true);
+    }
+
+    // Allow Cloudflare Tunnel domains
+    if (origin.includes("cfargotunnel.com")) {
+      return callback(null, true);
+    }
+
+    // Allow custom domains (configured via env var)
+    const allowedOrigins = process.env.CORS_ORIGINS?.split(",") || [];
+    if (allowedOrigins.some((allowed) => origin.includes(allowed.trim()))) {
+      return callback(null, true);
+    }
+
+    // Reject other origins
+    console.warn(`[CORS] Blocked request from origin: ${origin}`);
+    callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true, // Allow cookies (Zero Trust CF_Authorization)
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "50mb" })); // Increase limit for large imports
 
 // Serve static frontend files

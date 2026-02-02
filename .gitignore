@@ -23,6 +23,9 @@ backups/
 .env.local
 .env.production
 
+# Client configuration (contains production API URLs)
+src/client/config.js
+
 # Logs
 logs/
 *.log
