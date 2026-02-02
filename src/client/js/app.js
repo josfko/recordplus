@@ -51,7 +51,7 @@ export function getCurrentPeriod() {
 }
 
 // Initialize application
-document.addEventListener("DOMContentLoaded", () => {
+function initApp() {
   const mainContent = document.getElementById("main-content");
 
   // Initialize router
@@ -138,7 +138,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Handle initial route
   router.handleRoute();
-});
+}
+
+// Run initialization - handle case where DOMContentLoaded already fired
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initApp);
+} else {
+  // DOM already loaded, run immediately
+  initApp();
+}
 
 // Export for use in components
 export { router, api };
