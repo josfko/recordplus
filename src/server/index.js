@@ -40,6 +40,11 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    // Allow recordplus.work custom domain
+    if (origin.includes("recordplus.work")) {
+      return callback(null, true);
+    }
+
     // Allow custom domains (configured via env var)
     const allowedOrigins = process.env.CORS_ORIGINS?.split(",") || [];
     if (allowedOrigins.some((allowed) => origin.includes(allowed.trim()))) {
