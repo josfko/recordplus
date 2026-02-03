@@ -334,3 +334,97 @@ Once your domain resolves, you still need to protect it with Zero Trust:
 - [Cloudflare: Add a custom domain](https://developers.cloudflare.com/pages/configuration/custom-domains/)
 - [Cloudflare: DNS records](https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-dns-records/)
 - [What is DNS?](https://www.cloudflare.com/learning/dns/what-is-dns/) (beginner-friendly explanation)
+
+---
+
+## Issue: CORS Error When Using Custom Domain
+
+**Date:** 2026-02-03
+**Severity:** High
+**Affected:** Custom domain accessing API (`recordplus.work` → `api.recordplus.work`)
+
+### Symptoms
+
+- Sidebar loads, but main content is blank (looks like the race condition issue!)
+- Browser console shows: `Access to fetch... blocked by CORS policy`
+- Error mentions: `No 'Access-Control-Allow-Origin' header is present`
+- Works fine on `recordplus.pages.dev` but fails on `recordplus.work`
+
+### How to Tell It's CORS (Not Race Condition)
+
+| Issue | Console Shows |
+|-------|---------------|
+| Race condition | No errors, just `[Record+] Initialized successfully` |
+| CORS error | Red errors with `CORS policy` and `Access-Control-Allow-Origin` |
+
+**Check the Network tab:** You'll see failed requests (red) to `api.recordplus.work` with status `(failed)` or `CORS error`.
+
+### Root Cause
+
+The API server's CORS whitelist doesn't include your custom domain.
+
+**CORS (Cross-Origin Resource Sharing)** is a browser security feature. When your frontend (`recordplus.work`) makes a request to a different origin (`api.recordplus.work`), the browser asks the API server: "Is this origin allowed?"
+
+If the server doesn't respond with `Access-Control-Allow-Origin: https://recordplus.work`, the browser blocks the request.
+
+### Why This Happens
+
+The server's CORS configuration in `src/server/index.js` has a whitelist:
+
+```javascript
+// These origins are allowed:
+if (origin.includes("localhost")) return callback(null, true);
+if (origin.includes(".pages.dev")) return callback(null, true);
+if (origin.includes("cfargotunnel.com")) return callback(null, true);
+if (origin.includes("recordplus.work")) return callback(null, true);  // ← Add this!
+```
+
+If your custom domain isn't in the whitelist, requests are blocked.
+
+### Solution
+
+1. **Edit `src/server/index.js`** and add your custom domain to the CORS whitelist:
+
+```javascript
+// Allow recordplus.work custom domain
+if (origin.includes("recordplus.work")) {
+  return callback(null, true);
+}
+```
+
+2. **Commit and push:**
+```bash
+git add src/server/index.js
+git commit -m "fix(server): add custom domain to CORS whitelist"
+git push origin main
+```
+
+3. **Deploy to VPS:**
+```bash
+# SSH to your VPS, then:
+sudo -u appuser bash -c "cd /home/appuser/recordplus && git pull origin main && pm2 restart recordplus"
+```
+
+4. **Test:** Refresh `https://recordplus.work` - the CORS error should be gone.
+
+### How CORS Works (Beginner Explanation)
+
+Think of CORS like a guest list at a party:
+
+1. Your frontend (`recordplus.work`) wants to talk to the API (`api.recordplus.work`)
+2. The browser says: "Wait, let me check if you're on the guest list"
+3. Browser asks API: "Is `recordplus.work` allowed?" (preflight OPTIONS request)
+4. API checks its whitelist and responds:
+   - **On the list:** "Yes, let them in" → Request succeeds
+   - **Not on the list:** No response or error → Browser blocks request
+
+The whitelist is configured in the server's CORS settings.
+
+### Related Commits
+
+- `3089572` - fix(server): add recordplus.work to CORS whitelist
+
+### References
+
+- [MDN: CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+- [Express CORS middleware](https://expressjs.com/en/resources/middleware/cors.html)
