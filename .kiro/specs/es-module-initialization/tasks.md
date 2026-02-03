@@ -102,7 +102,7 @@ export function ready(callback) {
 ### 4.1 Update Troubleshooting Guide
 - [x] Update `docs/TROUBLESHOOTING.md` with new solution code
 - [x] Add section explaining the three-layer approach
-- [ ] Update "Related Commits" section with new commit hash
+- [x] Update "Related Commits" section with new commit hash (`386779a`)
 - [x] Add debugging tips for future occurrences
 
 ### 4.2 Add Inline Documentation

@@ -154,7 +154,8 @@ For any SPA with ES modules that rely on `DOMContentLoaded`:
 
 ### Related Commits
 
-- `c22095e` - fix(app): handle DOMContentLoaded race condition with ES modules
+- `386779a` - fix(app): bulletproof ES module initialization with three-layer defense
+- `c22095e` - fix(app): handle DOMContentLoaded race condition with ES modules (original fix, incomplete)
 
 ### References
 
