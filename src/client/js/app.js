@@ -50,9 +50,25 @@ export function getCurrentPeriod() {
   };
 }
 
-// Initialize application
+/**
+ * Initialize the application.
+ * Idempotent - safe to call multiple times.
+ * @see .kiro/specs/es-module-initialization/design.md
+ */
 function initApp() {
+  // Guard: Verify container exists
   const mainContent = document.getElementById("main-content");
+  if (!mainContent) {
+    console.error("[Record+] Cannot initialize: #main-content not found");
+    return;
+  }
+
+  // Guard: Prevent double initialization
+  if (window.__recordPlusInitialized) {
+    console.warn("[Record+] Already initialized, skipping");
+    return;
+  }
+  window.__recordPlusInitialized = true;
 
   // Initialize router
   router.init(mainContent);
@@ -138,15 +154,32 @@ function initApp() {
 
   // Handle initial route
   router.handleRoute();
+
+  console.log("[Record+] Initialized successfully");
 }
 
-// Run initialization - handle case where DOMContentLoaded already fired
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initApp);
-} else {
-  // DOM already loaded, run immediately
-  initApp();
-}
+/**
+ * Bulletproof bootstrap with failsafe.
+ * Handles all readyState values and includes window.load fallback.
+ * @see .kiro/specs/es-module-initialization/design.md
+ */
+(function bootstrap() {
+  if (document.readyState === "loading") {
+    // DOM still loading - safe to wait for event
+    document.addEventListener("DOMContentLoaded", initApp);
+  } else {
+    // DOM already ready ("interactive" or "complete") - run now
+    initApp();
+  }
+
+  // Failsafe for edge cases (bfcache, timing issues)
+  window.addEventListener("load", () => {
+    if (!window.__recordPlusInitialized) {
+      console.warn("[Record+] Failsafe: initializing via window.load");
+      initApp();
+    }
+  });
+})();
 
 // Export for use in components
 export { router, api };

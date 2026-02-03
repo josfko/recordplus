@@ -43,35 +43,69 @@ ES modules are **deferred by default** and load asynchronously. The browser fire
 
 ### Solution
 
-Check `document.readyState` before adding the event listener. If the DOM is already loaded, run initialization immediately.
+Use a **three-layer defense** pattern with guards and failsafe:
 
-**Before (broken):**
+1. **Guard 1:** Check DOM element exists
+2. **Guard 2:** Prevent double initialization with a flag
+3. **Failsafe:** Use `window.load` as backup
+
+**Before (incomplete fix - can still fail):**
 ```javascript
-document.addEventListener("DOMContentLoaded", () => {
-  const mainContent = document.getElementById("main-content");
-  router.init(mainContent);
-  // ... register routes
-  router.handleRoute();
-});
-```
-
-**After (fixed):**
-```javascript
-function initApp() {
-  const mainContent = document.getElementById("main-content");
-  router.init(mainContent);
-  // ... register routes
-  router.handleRoute();
-}
-
-// Run initialization - handle case where DOMContentLoaded already fired
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initApp);
 } else {
-  // DOM already loaded, run immediately
   initApp();
 }
 ```
+
+**After (bulletproof):**
+```javascript
+function initApp() {
+  // Guard: Verify container exists
+  const mainContent = document.getElementById("main-content");
+  if (!mainContent) {
+    console.error("[Record+] Cannot initialize: #main-content not found");
+    return;
+  }
+
+  // Guard: Prevent double initialization
+  if (window.__recordPlusInitialized) {
+    console.warn("[Record+] Already initialized, skipping");
+    return;
+  }
+  window.__recordPlusInitialized = true;
+
+  // Initialize router and routes
+  router.init(mainContent);
+  // ... register routes ...
+  router.handleRoute();
+
+  console.log("[Record+] Initialized successfully");
+}
+
+// Bulletproof bootstrap with failsafe
+(function bootstrap() {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initApp);
+  } else {
+    initApp();
+  }
+
+  // Failsafe for edge cases (bfcache, timing issues)
+  window.addEventListener("load", () => {
+    if (!window.__recordPlusInitialized) {
+      console.warn("[Record+] Failsafe: initializing via window.load");
+      initApp();
+    }
+  });
+})();
+```
+
+**Why this is better:**
+- Handles all three `readyState` values: `"loading"`, `"interactive"`, `"complete"`
+- Idempotent: safe to call multiple times
+- Failsafe: `window.load` catches edge cases like bfcache
+- Observable: console logs show which path was taken
 
 ### How to Diagnose
 
@@ -96,21 +130,27 @@ if (document.readyState === "loading") {
 
 For any SPA with ES modules that rely on `DOMContentLoaded`:
 
-1. Always check `document.readyState` before adding the listener
-2. Consider using a pattern like:
+1. **Always use the three-layer defense pattern** (guards + failsafe)
+2. **Use the `ready()` utility** from `src/client/js/utils/ready.js`:
    ```javascript
-   function ready(fn) {
-     if (document.readyState !== "loading") {
-       fn();
-     } else {
-       document.addEventListener("DOMContentLoaded", fn);
-     }
-   }
+   import { ready } from './utils/ready.js';
 
    ready(() => {
-     // initialization code
+     // Your initialization code here
+     // This runs immediately if DOM is ready, or waits if still loading
    });
    ```
+
+3. **For complex apps, add idempotency guards:**
+   ```javascript
+   function initApp() {
+     if (window.__appInitialized) return;
+     window.__appInitialized = true;
+     // ... init code ...
+   }
+   ```
+
+4. **Full specification available at:** `.kiro/specs/es-module-initialization/`
 
 ### Related Commits
 
@@ -121,3 +161,175 @@ For any SPA with ES modules that rely on `DOMContentLoaded`:
 - [MDN: DOMContentLoaded](https://developer.mozilla.org/en-US/docs/Web/API/Document/DOMContentLoaded_event)
 - [MDN: document.readyState](https://developer.mozilla.org/en-US/docs/Web/API/Document/readyState)
 - [JavaScript modules are deferred](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules#other_differences_between_modules_and_standard_scripts)
+
+---
+
+## Issue: Custom Domain Not Working ("Safari Can't Find Server")
+
+**Date:** 2026-02-03
+**Severity:** Critical
+**Affected:** Custom domain access (e.g., `recordplus.work`)
+
+### Symptoms
+
+- Your Cloudflare Pages site works perfectly at `yourproject.pages.dev`
+- Zero Trust authentication works on the `.pages.dev` URL
+- But your custom domain shows **"Safari can't find the server"** or **"This site can't be reached"**
+- The error happens in all browsers, not just Safari
+
+### What This Error Means
+
+**"Can't find the server"** = DNS resolution failure.
+
+Your browser is asking "What is the IP address for `recordplus.work`?" and getting no answer. This is NOT a Zero Trust issue or a code issue - it's a DNS configuration issue.
+
+### Root Cause
+
+**Missing DNS record for the root domain.**
+
+When you add a custom domain to Cloudflare, you might create records for subdomains (like `api.yourdomain.com`) but forget to create a record for the root domain itself (`yourdomain.com` with no subdomain).
+
+**Example of incomplete DNS setup:**
+```
+api.recordplus.work  → ✅ Has CNAME record → Works
+www.recordplus.work  → ❌ No record        → Doesn't work
+recordplus.work      → ❌ No record        → Doesn't work
+```
+
+### How DNS Works (Beginner Explanation)
+
+Think of DNS like a phone book:
+- Your domain (`recordplus.work`) is like a person's name
+- DNS records are like phone numbers
+- Without an entry in the phone book, nobody can call you
+
+**Each subdomain needs its own entry:**
+- `api.recordplus.work` needs a record
+- `www.recordplus.work` needs a record
+- `recordplus.work` (the "root" or "apex") needs a record
+
+They're all separate entries, even though they look related.
+
+### Solution
+
+#### Step 1: Check if Your Domain Uses Cloudflare Nameservers
+
+Run this in your terminal:
+```bash
+dig NS yourdomain.com +short
+```
+
+You should see something like:
+```
+jasper.ns.cloudflare.com.
+surina.ns.cloudflare.com.
+```
+
+If you see different nameservers (not `cloudflare.com`), you need to update your domain registrar to use Cloudflare's nameservers.
+
+#### Step 2: Add the Missing DNS Record
+
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. Click on your domain (e.g., `recordplus.work`)
+3. Click **DNS** in the sidebar
+4. Click **Add record**
+5. Fill in:
+   - **Type:** `CNAME`
+   - **Name:** `@` (this means "root domain")
+   - **Target:** `yourproject.pages.dev`
+   - **Proxy status:** **Proxied** (orange cloud ON)
+6. Click **Save**
+
+**Visual guide:**
+```
+┌──────────────────────────────────────────────────────────┐
+│  Type      Name    Target                    Proxy       │
+├──────────────────────────────────────────────────────────┤
+│  CNAME     @       recordplus.pages.dev     ☁️ Proxied  │
+│  CNAME     www     recordplus.work          ☁️ Proxied  │
+│  CNAME     api     <tunnel-id>.cfargotunnel ☁️ Proxied  │
+└──────────────────────────────────────────────────────────┘
+```
+
+#### Step 3: Wait for DNS Propagation
+
+DNS changes can take up to 5 minutes to propagate globally. Usually it's faster.
+
+#### Step 4: Verify It Works
+
+```bash
+# Check if the domain resolves to an IP
+dig yourdomain.com +short
+
+# Should return Cloudflare IPs like:
+# 172.67.xxx.xxx
+# 104.21.xxx.xxx
+```
+
+Or just open `https://yourdomain.com` in an incognito window.
+
+### Common Mistakes
+
+1. **Creating `www` but not `@`**
+   The root domain (`example.com`) and `www.example.com` are different. You need both.
+
+2. **Grey cloud instead of orange cloud**
+   Grey cloud = "DNS only" = traffic doesn't go through Cloudflare = Zero Trust won't work.
+
+3. **Forgetting to update nameservers**
+   Even if you add DNS records in Cloudflare, they won't work unless your domain registrar points to Cloudflare's nameservers.
+
+4. **Typo in the target**
+   Make sure `yourproject.pages.dev` matches exactly what you see in Cloudflare Pages.
+
+### After DNS Works: Add Zero Trust
+
+Once your domain resolves, you still need to protect it with Zero Trust:
+
+1. Go to [Zero Trust Dashboard](https://one.dash.cloudflare.com/)
+2. Click **Access** → **Applications**
+3. Click **Add an application** → **Self-hosted**
+4. Enter:
+   - **Application name:** `RecordPlus` (or whatever you want)
+   - **Application domain:** `recordplus.work`
+5. Click **Next** and add a policy (same rules as your `.pages.dev` one)
+6. Click **Add application**
+
+**Remember:** Each domain/subdomain needs its own Zero Trust application:
+- `recordplus.work` → needs an application
+- `api.recordplus.work` → needs another application
+
+### The Full Picture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    WHAT YOU NEED                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. Domain registered somewhere (GoDaddy, Namecheap, etc.)  │
+│                          ↓                                  │
+│  2. Nameservers point to Cloudflare                         │
+│                          ↓                                  │
+│  3. DNS records in Cloudflare for each subdomain            │
+│                          ↓                                  │
+│  4. Zero Trust applications to protect each domain          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Quick Checklist
+
+- [ ] Domain added to Cloudflare account
+- [ ] Nameservers at registrar updated to Cloudflare's
+- [ ] DNS record for `@` (root domain) pointing to Pages
+- [ ] DNS record for `www` (optional but recommended)
+- [ ] DNS record for `api` pointing to Tunnel
+- [ ] Orange cloud (Proxied) enabled on all records
+- [ ] Zero Trust Application for `recordplus.work`
+- [ ] Zero Trust Application for `api.recordplus.work`
+
+### References
+
+- [Cloudflare: Add a custom domain](https://developers.cloudflare.com/pages/configuration/custom-domains/)
+- [Cloudflare: DNS records](https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-dns-records/)
+- [What is DNS?](https://www.cloudflare.com/learning/dns/what-is-dns/) (beginner-friendly explanation)
