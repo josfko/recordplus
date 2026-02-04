@@ -1,10 +1,12 @@
 /**
  * Admin Panel Component
  * Task 8.7 - Requirements: 14.1-14.8
+ * Extended with backup management
  */
 
 import { api } from "../api.js";
 import { showToast } from "../app.js";
+import { BackupPanelView } from "./backupPanel.js";
 
 export class AdminPanelView {
   constructor(container) {
@@ -13,6 +15,8 @@ export class AdminPanelView {
     this.currentTable = null;
     this.tableData = null;
     this.queryResult = null;
+    this.activeTab = "database"; // 'database' or 'backups'
+    this.backupPanel = null;
   }
 
   async render() {
@@ -20,9 +24,14 @@ export class AdminPanelView {
       this.tables = await api.listTables();
       this.container.innerHTML = this.template();
       this.bindEvents();
+
+      // If backups tab is active, render the backup panel
+      if (this.activeTab === "backups") {
+        await this.renderBackupPanel();
+      }
     } catch (error) {
       console.error("Admin panel error:", error);
-      showToast("Error al cargar el panel de administración", "error");
+      showToast("Error al cargar el panel de administracion", "error");
     }
   }
 
@@ -30,14 +39,43 @@ export class AdminPanelView {
     return `
       <div class="header">
         <div class="header-title">
-          <h1>Panel de Administración</h1>
-          <p>Inspección de base de datos (solo lectura).</p>
+          <h1>Panel de Administracion</h1>
+          <p>Gestion de base de datos y copias de seguridad.</p>
         </div>
         <div class="header-actions">
           <span class="badge turno">Solo SELECT</span>
         </div>
       </div>
 
+      <!-- Tab Navigation -->
+      <div class="admin-tabs">
+        <button class="admin-tab ${this.activeTab === "database" ? "active" : ""}" data-tab="database">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+          Base de Datos
+        </button>
+        <button class="admin-tab ${this.activeTab === "backups" ? "active" : ""}" data-tab="backups">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Copias de Seguridad
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="admin-tab-content">
+        ${this.activeTab === "database" ? this.databaseTabContent() : '<div id="backup-panel-container"></div>'}
+      </div>
+    `;
+  }
+
+  databaseTabContent() {
+    return `
       <div style="display: grid; grid-template-columns: 200px 1fr; gap: 24px;">
         <!-- Tables Sidebar -->
         <div class="data-table-container" style="padding: 16px;">
@@ -84,27 +122,57 @@ export class AdminPanelView {
   }
 
   bindEvents() {
+    // Tab switching
+    this.container.querySelectorAll(".admin-tab").forEach((tab) => {
+      tab.addEventListener("click", async () => {
+        const newTab = tab.dataset.tab;
+        if (newTab !== this.activeTab) {
+          this.activeTab = newTab;
+          await this.render();
+        }
+      });
+    });
+
+    // Only bind database events if database tab is active
+    if (this.activeTab === "database") {
+      this.bindDatabaseEvents();
+    }
+  }
+
+  bindDatabaseEvents() {
     // Table selection
     this.container.querySelectorAll(".table-item").forEach((item) => {
       item.addEventListener("click", () => this.loadTable(item.dataset.table));
     });
 
     // Query execution
-    this.container.querySelector("#run-query").addEventListener("click", () => {
-      const sql = this.container.querySelector("#query-editor").value;
-      this.executeQuery(sql);
-    });
+    const runBtn = this.container.querySelector("#run-query");
+    if (runBtn) {
+      runBtn.addEventListener("click", () => {
+        const sql = this.container.querySelector("#query-editor").value;
+        this.executeQuery(sql);
+      });
+    }
 
     // Ctrl+Enter to run query
-    this.container
-      .querySelector("#query-editor")
-      .addEventListener("keydown", (e) => {
+    const editor = this.container.querySelector("#query-editor");
+    if (editor) {
+      editor.addEventListener("keydown", (e) => {
         if (e.ctrlKey && e.key === "Enter") {
           e.preventDefault();
           const sql = e.target.value;
           this.executeQuery(sql);
         }
       });
+    }
+  }
+
+  async renderBackupPanel() {
+    const panelContainer = this.container.querySelector("#backup-panel-container");
+    if (panelContainer) {
+      this.backupPanel = new BackupPanelView(panelContainer);
+      await this.backupPanel.render();
+    }
   }
 
   async loadTable(tableName) {
@@ -151,7 +219,7 @@ export class AdminPanelView {
       const result = await api.executeQuery(sql);
       const duration = (performance.now() - startTime).toFixed(0);
 
-      statusEl.textContent = `✓ ${result.rowCount} filas en ${duration}ms`;
+      statusEl.textContent = `OK ${result.rowCount} filas en ${duration}ms`;
       statusEl.style.color = "var(--status-success-text)";
 
       this.container.querySelector("#results-title").textContent =
@@ -162,7 +230,7 @@ export class AdminPanelView {
 
       this.renderResults(result.rows);
     } catch (error) {
-      statusEl.textContent = `✗ Error: ${error.message}`;
+      statusEl.textContent = `Error: ${error.message}`;
       statusEl.style.color = "var(--status-error)";
     }
   }

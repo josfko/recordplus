@@ -1,0 +1,33 @@
+---
+description: Verify changes before claiming they work
+globs: 
+alwaysApply: true
+---
+
+# Verification Rule
+
+## Never Claim Something Works Without Verification
+
+1. **After code changes**: Do NOT say "Done!" or "This will work" until you have verified the change is actually applied.
+
+2. **For backend changes**: 
+   - Confirm the server has restarted (check terminal output or restart it yourself)
+   - If generating files (PDFs, etc.), remind the user they need to regenerate - old files won't change
+
+3. **For frontend changes**:
+   - Remind user to refresh the browser
+   - Check for any console errors if possible
+
+4. **Be explicit about what's needed**:
+   - BAD: "Done! The PDF is now sober."
+   - GOOD: "I've updated the PDF template. To see the changes: 1) Make sure the server restarted, 2) Click 'Regenerar' to generate a NEW PDF - existing PDFs won't change."
+
+5. **When user says it didn't work**:
+   - First verify the file actually contains your changes (read it)
+   - Then check if the server is running the new code
+   - Then check if the user is looking at a newly generated output
+   - Never argue - investigate
+
+## The Golden Rule
+
+If you cannot prove something works, don't claim it does.

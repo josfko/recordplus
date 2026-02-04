@@ -649,13 +649,146 @@ ls -la /home/appuser/data/certificates/
 
 ---
 
+## Issue: App Goes Down After Inactivity (PM2 Not Configured)
+
+**Date:** 2026-02-04
+**Severity:** Critical
+**Affected:** Production server uptime
+
+### Symptoms
+
+- Site works after you manually start it, but goes down after some time
+- You have to "restart the server" to see the app again
+- After SSH-ing in, running `pm2 list` shows an **empty table** (no processes)
+- PM2 daemon is running, but no app is registered
+
+### Root Cause
+
+**PM2 is installed and running, but your app was never added to it.**
+
+PM2 is a process manager - it keeps apps running 24/7. But you must:
+1. **Start** the app with PM2
+2. **Save** the process list so PM2 remembers it
+3. **Enable startup** so PM2 starts on boot
+
+If you only ran `node src/server/index.js` directly (or it was started once and never saved), PM2 doesn't know about it and won't restart it.
+
+### Diagnosis
+
+SSH to your VPS and run:
+
+```bash
+pm2 list
+```
+
+**If empty (no processes):** Your app isn't registered with PM2. That's the problem.
+
+**If shows "recordplus" but status is "errored" or "stopped":** Different issue - check logs with `pm2 logs recordplus`.
+
+### Solution
+
+#### Step 1: Start the app with PM2
+
+```bash
+cd /home/appuser/recordplus
+pm2 start src/server/index.js --name "recordplus"
+```
+
+#### Step 2: Verify it's running
+
+```bash
+pm2 list
+```
+
+You should see:
+```
+│ id │ name        │ mode   │ status │ cpu │ memory │
+│ 0  │ recordplus  │ fork   │ online │ 0%  │ 50mb   │
+```
+
+#### Step 3: Save the process list
+
+```bash
+pm2 save
+```
+
+This tells PM2 "remember to start these apps after reboot."
+
+#### Step 4: Enable auto-start on boot
+
+```bash
+pm2 startup
+```
+
+This outputs a command like:
+```
+sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u root --hp /root
+```
+
+**Copy and run that exact command.**
+
+Then run `pm2 save` again to ensure the process list is saved.
+
+### Verification
+
+After setup, your app will:
+- Stay running 24/7
+- Auto-restart if it crashes
+- Start automatically when the server reboots
+
+Test by visiting your site - it should always be up without manual intervention.
+
+### What is PM2?
+
+PM2 is a **process manager** for Node.js. Think of it as a babysitter for your app:
+
+| Without PM2 | With PM2 |
+|-------------|----------|
+| App dies when you close terminal | App keeps running forever |
+| If app crashes, it stays dead | PM2 auto-restarts it |
+| Server reboot = app is gone | PM2 brings it back automatically |
+| No monitoring | Shows CPU, memory, logs |
+
+### Common PM2 Commands
+
+```bash
+pm2 list              # See what's running
+pm2 start app.js      # Start an app
+pm2 stop recordplus   # Stop the app
+pm2 restart recordplus # Restart the app
+pm2 logs recordplus   # View app logs
+pm2 logs --err        # View error logs only
+pm2 save              # Save current process list
+pm2 startup           # Enable auto-start on boot
+pm2 monit             # Live monitoring dashboard
+```
+
+### Prevention
+
+When deploying a new server:
+
+1. Always use `pm2 start` (not just `node`)
+2. Always run `pm2 save` after starting
+3. Always run `pm2 startup` and execute the output command
+4. Verify with `pm2 list` before closing SSH
+
+### Related Files
+
+- `ecosystem.config.js` - PM2 configuration file (optional, for advanced setups)
+- `/root/.pm2/` - PM2 daemon files and logs
+
+---
+
 ## Complete Production Configuration Checklist
 
 Use this checklist when setting up a new VPS or after a fresh deployment:
 
-### 1. VPS Access
+### 1. VPS Access & PM2
 - [ ] Can SSH to VPS: `ssh root@217.71.207.83`
-- [ ] PM2 is running: `pm2 status`
+- [ ] PM2 is running: `pm2 list`
+- [ ] App is registered: `pm2 list` shows "recordplus" with status "online"
+- [ ] PM2 process saved: `pm2 save` (run after any changes)
+- [ ] PM2 startup enabled: `pm2 startup` (run once per server)
 - [ ] App is healthy: `curl http://localhost:3000/api/health`
 
 ### 2. SMTP Configuration

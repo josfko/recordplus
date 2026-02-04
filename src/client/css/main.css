@@ -5464,3 +5464,307 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 /* ==================== Responsive Layout ==================== */
 /* Sidebar width uses clamp() in variables.css for automatic responsive sizing */
 /* Minimum viewport width is 1000px - horizontal scroll appears below that */
+
+/* ==================== Admin Panel Tabs ==================== */
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  width: fit-content;
+}
+
+.admin-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-dimmed);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.admin-tab.active {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.admin-tab svg {
+  opacity: 0.7;
+}
+
+.admin-tab.active svg {
+  opacity: 1;
+}
+
+.admin-tab-content {
+  min-height: 400px;
+}
+
+/* ==================== Backup Panel ==================== */
+.backup-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Backup Stats Grid */
+.backup-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.backup-stat-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--backdrop-blur-md));
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xl);
+}
+
+.backup-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
+}
+
+.backup-stat-icon--time {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+.backup-stat-icon--storage {
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  color: #eab308;
+}
+
+.backup-stat-icon--sync {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.backup-stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.backup-stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dimmed);
+}
+
+.backup-stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.backup-stat-value--dimmed {
+  color: var(--text-dimmed);
+  font-size: 14px;
+}
+
+.backup-stat-detail {
+  font-size: 12px;
+  color: var(--text-placeholder);
+}
+
+/* Backup Actions */
+.backup-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.backup-actions .btn svg {
+  margin-right: 6px;
+}
+
+/* Backup List */
+.backup-list-container {
+  overflow: hidden;
+}
+
+.backup-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.backup-list-header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dimmed);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.backup-count {
+  font-size: 11px;
+  color: var(--text-placeholder);
+}
+
+/* Backup Table */
+.backup-table {
+  width: 100%;
+}
+
+.backup-table th {
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dimmed);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.backup-table td {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.backup-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.backup-filename {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.backup-date {
+  font-size: 12px;
+  color: var(--text-dimmed);
+}
+
+.backup-size {
+  font-size: 12px;
+  color: var(--text-dimmed);
+  font-family: var(--font-mono);
+}
+
+.backup-actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.backup-actions-cell .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-dimmed);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.backup-actions-cell .btn-icon:first-child {
+  margin-left: 0;
+}
+
+.backup-actions-cell .btn-download:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.backup-actions-cell .btn-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+/* Backup Empty State */
+.backup-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-dimmed);
+}
+
+.backup-empty svg {
+  opacity: 0.3;
+  margin-bottom: 16px;
+}
+
+.backup-empty p {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dimmed);
+  margin-bottom: 4px;
+}
+
+.backup-empty span {
+  font-size: 12px;
+  color: var(--text-placeholder);
+}
+
+/* Backup Error State */
+.backup-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.backup-error svg {
+  color: var(--status-error);
+  opacity: 0.7;
+  margin-bottom: 16px;
+}
+
+.backup-error p {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.backup-error span {
+  font-size: 12px;
+  color: var(--text-dimmed);
+  margin-bottom: 16px;
+}

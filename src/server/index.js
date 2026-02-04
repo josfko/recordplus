@@ -7,6 +7,7 @@ import dashboardRouter from "./routes/dashboard.js";
 import configRouter from "./routes/config.js";
 import exportImportRouter from "./routes/exportImport.js";
 import adminRouter from "./routes/admin.js";
+import backupRouter from "./routes/backup.js";
 import aragRouter from "./routes/arag.js";
 import particularesRouter from "./routes/particulares.js";
 import turnoOficioRouter from "./routes/turnoOficio.js";
@@ -80,6 +81,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/config", configRouter);
 app.use("/api", exportImportRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/backup", backupRouter);
 
 // Health check
 app.get("/api/health", (req, res) => {

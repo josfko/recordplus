@@ -288,6 +288,45 @@ class ApiClient {
     });
   }
 
+  // ==================== Backup API ====================
+
+  /**
+   * Get backup system status
+   */
+  async getBackupStatus() {
+    return this.request("/backup/status");
+  }
+
+  /**
+   * List all available backups
+   */
+  async listBackups() {
+    return this.request("/backup/list");
+  }
+
+  /**
+   * Create a new on-demand backup
+   */
+  async createBackup() {
+    return this.request("/backup/create", { method: "POST" });
+  }
+
+  /**
+   * Get download URL for a backup file
+   * @param {string} filename - Backup filename
+   */
+  getBackupDownloadUrl(filename) {
+    return `${this.baseUrl}/backup/${filename}/download`;
+  }
+
+  /**
+   * Delete a backup file
+   * @param {string} filename - Backup filename
+   */
+  async deleteBackup(filename) {
+    return this.request(`/backup/${filename}`, { method: "DELETE" });
+  }
+
   // ==================== Health Check ====================
 
   /**

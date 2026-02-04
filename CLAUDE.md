@@ -16,6 +16,9 @@ Before writing any code:
 3. Then implement the code
 4. Run verification and iterate until it passes
 
+## Comunication
+1. Always specify exactly where do i have to run a command you tell me to run
+
 ## Technology Stack
 
 ### Frontend
