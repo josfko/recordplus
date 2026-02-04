@@ -4,6 +4,11 @@
  *
  * Environment-aware: Automatically detects localhost vs production
  * and uses the appropriate API URL.
+ *
+ * Features:
+ * - Automatic retry with exponential backoff for transient errors
+ * - Configuration caching with TTL to reduce server load
+ * - Structured error handling with Spanish messages
  */
 
 // Load configuration (may not exist in development)
@@ -14,6 +19,230 @@ try {
 } catch {
   // config.js not found - will use /api for same-origin requests
 }
+
+// ==================== Retry Logic ====================
+// Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6
+
+/**
+ * Retryable request handler with exponential backoff
+ * Automatically retries transient errors (network issues, 5xx, 429)
+ */
+class RetryableRequest {
+  /**
+   * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
+   * @param {number} baseDelay - Initial delay in ms (default: 1000)
+   * @param {number} maxDelay - Maximum delay in ms (default: 10000)
+   */
+  constructor(maxRetries = 3, baseDelay = 1000, maxDelay = 10000) {
+    this.maxRetries = maxRetries;
+    this.baseDelay = baseDelay;
+    this.maxDelay = maxDelay;
+  }
+
+  /**
+   * Determine if an error is retryable
+   * Retryable: network errors, 5xx (except 501), 429 (rate limited)
+   * NOT retryable: 4xx client errors (except 429), 501 Not Implemented
+   *
+   * @param {Error} error - The error to check
+   * @returns {boolean} True if the request should be retried
+   */
+  isRetryable(error) {
+    // Network errors are retryable
+    if (error.code === "NETWORK_ERROR") {
+      return true;
+    }
+
+    // HTTP status-based decisions
+    if (error.status) {
+      // 429 Too Many Requests - retryable
+      if (error.status === 429) {
+        return true;
+      }
+
+      // 5xx server errors are retryable (except 501 Not Implemented)
+      if (error.status >= 500 && error.status !== 501) {
+        return true;
+      }
+
+      // 4xx client errors are NOT retryable
+      if (error.status >= 400 && error.status < 500) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Calculate delay with exponential backoff and jitter
+   * Jitter prevents thundering herd when multiple clients retry simultaneously
+   *
+   * @param {number} attempt - Current attempt number (0-indexed)
+   * @returns {number} Delay in milliseconds
+   */
+  calculateDelay(attempt) {
+    // Exponential backoff: baseDelay * 2^attempt
+    const exponentialDelay = this.baseDelay * Math.pow(2, attempt);
+
+    // Cap at maxDelay
+    const cappedDelay = Math.min(exponentialDelay, this.maxDelay);
+
+    // Add random jitter (0-1000ms) to prevent thundering herd
+    const jitter = Math.random() * 1000;
+
+    return cappedDelay + jitter;
+  }
+
+  /**
+   * Execute a request with automatic retry
+   *
+   * @param {Function} requestFn - Async function that makes the request
+   * @returns {Promise<any>} The response from the request
+   * @throws {Error} The last error if all retries exhausted
+   */
+  async execute(requestFn) {
+    let lastError;
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        return await requestFn();
+      } catch (error) {
+        lastError = error;
+
+        // Don't retry if error is not retryable
+        if (!this.isRetryable(error)) {
+          throw error;
+        }
+
+        // Don't wait after the last attempt
+        if (attempt < this.maxRetries) {
+          const delay = this.calculateDelay(attempt);
+          if (config.DEBUG) {
+            console.log(
+              `[Retry] Attempt ${attempt + 1}/${this.maxRetries} failed, retrying in ${Math.round(delay)}ms...`,
+            );
+          }
+          await this._delay(delay);
+        }
+      }
+    }
+
+    // All retries exhausted
+    throw lastError;
+  }
+
+  /**
+   * Wait for specified milliseconds
+   * @param {number} ms - Milliseconds to wait
+   * @private
+   */
+  _delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+}
+
+// ==================== Configuration Caching ====================
+// Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6
+
+const CONFIG_CACHE_KEY = "recordplus_config_cache";
+const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+/**
+ * Configuration cache using localStorage
+ * Reduces server load by caching configuration for 5 minutes
+ */
+class ConfigCache {
+  /**
+   * Get cached configuration if valid
+   * @returns {Object|null} Cached configuration or null if expired/missing
+   */
+  static get() {
+    try {
+      const cached = localStorage.getItem(CONFIG_CACHE_KEY);
+      if (!cached) return null;
+
+      const { data, timestamp } = JSON.parse(cached);
+
+      // Check TTL
+      if (Date.now() - timestamp > CONFIG_CACHE_TTL) {
+        if (config.DEBUG) {
+          console.log("[ConfigCache] Cache expired");
+        }
+        return null;
+      }
+
+      if (config.DEBUG) {
+        console.log("[ConfigCache] Cache hit");
+      }
+      return data;
+    } catch (error) {
+      // localStorage unavailable or corrupted data
+      if (config.DEBUG) {
+        console.warn("[ConfigCache] Failed to read cache:", error.message);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Store configuration in cache
+   * @param {Object} data - Configuration data to cache
+   */
+  static set(data) {
+    try {
+      localStorage.setItem(
+        CONFIG_CACHE_KEY,
+        JSON.stringify({
+          data,
+          timestamp: Date.now(),
+        }),
+      );
+      if (config.DEBUG) {
+        console.log("[ConfigCache] Cache updated");
+      }
+    } catch (error) {
+      // localStorage unavailable or quota exceeded
+      if (config.DEBUG) {
+        console.warn("[ConfigCache] Failed to write cache:", error.message);
+      }
+    }
+  }
+
+  /**
+   * Invalidate the cache (call after updates)
+   */
+  static invalidate() {
+    try {
+      localStorage.removeItem(CONFIG_CACHE_KEY);
+      if (config.DEBUG) {
+        console.log("[ConfigCache] Cache invalidated");
+      }
+    } catch (error) {
+      // Ignore errors
+    }
+  }
+
+  /**
+   * Get remaining TTL in seconds (for debugging)
+   * @returns {number} Seconds until cache expires, or 0 if expired
+   */
+  static getRemainingTTL() {
+    try {
+      const cached = localStorage.getItem(CONFIG_CACHE_KEY);
+      if (!cached) return 0;
+
+      const { timestamp } = JSON.parse(cached);
+      const remaining = CONFIG_CACHE_TTL - (Date.now() - timestamp);
+      return Math.max(0, Math.round(remaining / 1000));
+    } catch {
+      return 0;
+    }
+  }
+}
+
+// Export for use in other modules if needed
+export { RetryableRequest, ConfigCache };
 
 class ApiClient {
   constructor() {
@@ -150,14 +379,26 @@ class ApiClient {
   }
 
   /**
-   * Update a case
+   * Update a case with optional optimistic locking
+   * If version is provided, the update will only succeed if the server's
+   * version matches. This prevents lost updates from concurrent edits.
+   * Requirements: 3.6
+   *
    * @param {number} id - Case ID
    * @param {Object} data - Updated data
+   * @param {number|null} version - Optional version for optimistic locking
    */
-  async updateCase(id, data) {
+  async updateCase(id, data, version = null) {
+    const payload = { ...data };
+
+    // Include version for optimistic locking if provided
+    if (version !== null) {
+      payload.expectedVersion = version;
+    }
+
     return this.request(`/cases/${id}`, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   }
 
@@ -189,7 +430,9 @@ class ApiClient {
   // ==================== Dashboard API ====================
 
   /**
-   * Get dashboard metrics
+   * Get dashboard metrics with retry for transient errors
+   * Requirements: 5.1
+   *
    * @param {number} month - Month (1-12), optional
    * @param {number} year - Year, optional
    */
@@ -199,27 +442,62 @@ class ApiClient {
     if (year) params.set("year", year.toString());
 
     const query = params.toString();
-    return this.request(`/dashboard${query ? "?" + query : ""}`);
+    const endpoint = `/dashboard${query ? "?" + query : ""}`;
+
+    // Use retry for this critical read operation
+    const retryable = new RetryableRequest();
+    return retryable.execute(() => this.request(endpoint));
   }
 
   // ==================== Configuration API ====================
 
   /**
-   * Get all configuration
+   * Get all configuration with caching and retry
+   * Returns cached data if available and valid, otherwise fetches from server
+   * Requirements: 5.1, 6.1, 6.2, 6.4
    */
   async getConfig() {
-    return this.request("/config");
+    // Check cache first
+    const cached = ConfigCache.get();
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch from server with retry
+    const retryable = new RetryableRequest();
+    const data = await retryable.execute(() => this.request("/config"));
+
+    // Update cache
+    ConfigCache.set(data);
+
+    return data;
   }
 
   /**
-   * Update configuration
+   * Update configuration and invalidate cache
+   * Requirements: 6.3
+   *
    * @param {Object} data - Configuration key-value pairs
    */
   async updateConfig(data) {
-    return this.request("/config", {
+    const result = await this.request("/config", {
       method: "PUT",
       body: JSON.stringify(data),
     });
+
+    // Invalidate cache after successful update
+    ConfigCache.invalidate();
+
+    return result;
+  }
+
+  /**
+   * Force refresh configuration (bypasses cache)
+   * Useful when you need the latest data
+   */
+  async refreshConfig() {
+    ConfigCache.invalidate();
+    return this.getConfig();
   }
 
   /**

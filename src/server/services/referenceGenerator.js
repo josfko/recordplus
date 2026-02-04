@@ -67,6 +67,38 @@ export function generateAragReference() {
 }
 
 /**
+ * Generate internal reference for ARAG cases within an existing transaction
+ * Uses the provided db instance to participate in the caller's transaction
+ * Requirements: 2.1, 2.6
+ *
+ * @param {Database} db - Database instance from the calling transaction
+ * @returns {string} Reference like IY004921
+ */
+export function generateAragReferenceInTransaction(db) {
+  const type = "ARAG";
+
+  // Try to get existing counter
+  const existing = db
+    .prepare("SELECT last_value FROM reference_counters WHERE type = ?")
+    .get(type);
+
+  let nextValue;
+  if (existing) {
+    nextValue = existing.last_value + 1;
+    db.prepare(
+      "UPDATE reference_counters SET last_value = ?, updated_at = datetime('now') WHERE type = ?"
+    ).run(nextValue, type);
+  } else {
+    nextValue = 1;
+    db.prepare(
+      "INSERT INTO reference_counters (type, last_value, updated_at) VALUES (?, ?, datetime('now'))"
+    ).run(type, nextValue);
+  }
+
+  return `IY${nextValue.toString().padStart(6, "0")}`;
+}
+
+/**
  * Generate internal reference for Particular cases (IY-YY-NNN)
  * @param {number} year - Full year (e.g., 2026)
  * @returns {string} Reference like IY-26-001
@@ -77,6 +109,41 @@ export function generateParticularReference(year) {
   const counterType = `PARTICULAR_${currentYear}`;
   const counter = getNextCounter(counterType);
   return `IY-${yy}-${counter.toString().padStart(3, "0")}`;
+}
+
+/**
+ * Generate internal reference for Particular cases within an existing transaction
+ * Uses the provided db instance to participate in the caller's transaction
+ * Requirements: 2.1, 2.6
+ *
+ * @param {Database} db - Database instance from the calling transaction
+ * @param {number} year - Full year (e.g., 2026)
+ * @returns {string} Reference like IY-26-001
+ */
+export function generateParticularReferenceInTransaction(db, year) {
+  const currentYear = year || new Date().getFullYear();
+  const yy = currentYear.toString().slice(-2);
+  const counterType = `PARTICULAR_${currentYear}`;
+
+  // Try to get existing counter
+  const existing = db
+    .prepare("SELECT last_value FROM reference_counters WHERE type = ?")
+    .get(counterType);
+
+  let nextValue;
+  if (existing) {
+    nextValue = existing.last_value + 1;
+    db.prepare(
+      "UPDATE reference_counters SET last_value = ?, updated_at = datetime('now') WHERE type = ?"
+    ).run(nextValue, counterType);
+  } else {
+    nextValue = 1;
+    db.prepare(
+      "INSERT INTO reference_counters (type, last_value, updated_at) VALUES (?, ?, datetime('now'))"
+    ).run(counterType, nextValue);
+  }
+
+  return `IY-${yy}-${nextValue.toString().padStart(3, "0")}`;
 }
 
 /**
@@ -131,7 +198,9 @@ export default {
   validateAragExternalReference,
   validateParticularReference,
   generateAragReference,
+  generateAragReferenceInTransaction,
   generateParticularReference,
+  generateParticularReferenceInTransaction,
   getNextCounter,
   getCurrentCounter,
   aragReferenceExists,

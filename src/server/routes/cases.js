@@ -15,6 +15,11 @@ import {
   CASE_TYPES,
   CASE_STATES,
 } from "../services/caseService.js";
+import {
+  ValidationError as AppValidationError,
+  ConflictError as AppConflictError,
+  NotFoundError as AppNotFoundError,
+} from "../errors.js";
 
 const router = Router();
 
@@ -114,27 +119,32 @@ router.get("/:id", (req, res, next) => {
 /**
  * POST /api/cases
  * Create a new case
+ * Now uses atomic transactions for reference generation
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
  */
 router.post("/", (req, res, next) => {
   try {
     const caseData = create(req.body);
     res.status(201).json(caseData);
   } catch (error) {
-    if (error instanceof ValidationError) {
+    // Handle both legacy and new error classes
+    if (error instanceof ValidationError || error instanceof AppValidationError) {
       return res.status(400).json({
         error: {
           code: error.code,
           message: error.message,
           field: error.field,
+          details: error.details,
         },
       });
     }
-    if (error instanceof ConflictError) {
+    if (error instanceof ConflictError || error instanceof AppConflictError) {
       return res.status(409).json({
         error: {
           code: error.code,
           message: error.message,
           field: error.field,
+          details: error.details,
         },
       });
     }
@@ -144,7 +154,9 @@ router.post("/", (req, res, next) => {
 
 /**
  * PUT /api/cases/:id
- * Update a case
+ * Update a case with optional optimistic locking
+ * Body can include expectedVersion for concurrent edit detection
+ * Requirements: 3.2, 3.3, 3.5, 3.6
  */
 router.put("/:id", (req, res, next) => {
   try {
@@ -160,19 +172,38 @@ router.put("/:id", (req, res, next) => {
       });
     }
 
-    const caseData = update(id, req.body);
+    // Extract expectedVersion for optimistic locking
+    const { expectedVersion, ...updateData } = req.body;
+
+    // Parse version if provided (it may come as string from JSON)
+    const version =
+      expectedVersion !== undefined ? parseInt(expectedVersion, 10) : null;
+
+    const caseData = update(id, updateData, version);
     res.json(caseData);
   } catch (error) {
-    if (error instanceof ValidationError) {
+    // Handle both legacy and new error classes
+    if (error instanceof ValidationError || error instanceof AppValidationError) {
       return res.status(400).json({
         error: {
           code: error.code,
           message: error.message,
           field: error.field,
+          details: error.details,
         },
       });
     }
-    if (error instanceof NotFoundError) {
+    if (error instanceof ConflictError || error instanceof AppConflictError) {
+      return res.status(409).json({
+        error: {
+          code: error.code,
+          message: error.message,
+          field: error.field,
+          details: error.details,
+        },
+      });
+    }
+    if (error instanceof NotFoundError || error instanceof AppNotFoundError) {
       return res.status(404).json({
         error: {
           code: error.code,

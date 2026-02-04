@@ -38,6 +38,19 @@ export function getDatabase(options = {}) {
 
     // Enable WAL mode for better concurrency
     dbInstance.pragma("journal_mode = WAL");
+
+    // Database hardening pragmas for reliability
+    // Wait up to 5 seconds for locks before returning SQLITE_BUSY
+    dbInstance.pragma("busy_timeout = 5000");
+
+    // NORMAL is safe with WAL mode and faster than FULL
+    dbInstance.pragma("synchronous = NORMAL");
+
+    // 64MB cache for better read performance (negative = KB)
+    dbInstance.pragma("cache_size = -64000");
+
+    // Store temp tables in memory for speed
+    dbInstance.pragma("temp_store = MEMORY");
   }
 
   return dbInstance;
@@ -45,11 +58,44 @@ export function getDatabase(options = {}) {
 
 /**
  * Close the database connection
+ * Performs a WAL checkpoint before closing to ensure all data is written
  */
 export function closeDatabase() {
   if (dbInstance) {
+    // Checkpoint WAL to main database before closing
+    try {
+      dbInstance.pragma("wal_checkpoint(TRUNCATE)");
+    } catch (error) {
+      console.error("WAL checkpoint error during close:", error.message);
+    }
     dbInstance.close();
     dbInstance = null;
+  }
+}
+
+/**
+ * Perform a WAL checkpoint to flush data from WAL file to main database
+ * Uses PASSIVE mode to avoid blocking readers
+ * @returns {Object} Checkpoint result with busy, log, checkpointed counts
+ */
+export function checkpointWAL() {
+  const db = getDatabase();
+  const result = db.pragma("wal_checkpoint(PASSIVE)");
+  return result[0] || { busy: 0, log: 0, checkpointed: 0 };
+}
+
+/**
+ * Verify database integrity using PRAGMA quick_check
+ * @returns {boolean} True if database passes integrity check
+ */
+export function verifyIntegrity() {
+  try {
+    const db = getDatabase();
+    const result = db.pragma("quick_check");
+    return result[0]?.quick_check === "ok";
+  } catch (error) {
+    console.error("Database integrity check failed:", error.message);
+    return false;
   }
 }
 
@@ -133,6 +179,8 @@ export function verifyConnection() {
 export default {
   getDatabase,
   closeDatabase,
+  checkpointWAL,
+  verifyIntegrity,
   query,
   queryOne,
   execute,

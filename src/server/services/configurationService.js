@@ -1,7 +1,9 @@
 // Configuration Service
 // Task 4.4 - Requirements: 12.1-12.9
 
-import { query, queryOne, execute } from "../database.js";
+import { query, queryOne, execute, transaction, getDatabase } from "../database.js";
+import { ValidationError, DatabaseError } from "../errors.js";
+import { ConfigErrors, DatabaseErrors } from "../errorMessages.js";
 
 // Default configuration values
 export const DEFAULT_CONFIG = {
@@ -80,10 +82,16 @@ export function isPositiveNumber(value) {
   return !isNaN(num) && num >= 0;
 }
 
+// Flag to track if defaults have been initialized this session
+let defaultsInitialized = false;
+
 /**
  * Initialize default configuration values if not present
+ * @deprecated Use ensureDefaults() instead - called once at server startup
  */
 export function initializeDefaults() {
+  if (defaultsInitialized) return;
+
   for (const [key, value] of Object.entries(DEFAULT_CONFIG)) {
     const existing = queryOne("SELECT value FROM configuration WHERE key = ?", [
       key,
@@ -95,6 +103,38 @@ export function initializeDefaults() {
       ]);
     }
   }
+  defaultsInitialized = true;
+}
+
+/**
+ * Ensure default configuration values exist (called once at server startup)
+ * Uses a transaction to atomically insert all missing defaults
+ * Requirements: 1.5, 1.6
+ */
+export function ensureDefaults() {
+  if (defaultsInitialized) return;
+
+  try {
+    transaction(() => {
+      const db = getDatabase();
+      const upsertStmt = db.prepare(`
+        INSERT INTO configuration (key, value, updated_at)
+        VALUES (?, ?, datetime('now'))
+        ON CONFLICT(key) DO NOTHING
+      `);
+
+      for (const [key, value] of Object.entries(DEFAULT_CONFIG)) {
+        upsertStmt.run(key, value);
+      }
+    });
+    defaultsInitialized = true;
+  } catch (error) {
+    console.error("[Config] Failed to initialize defaults:", error.message);
+    throw new DatabaseError(
+      DatabaseErrors.transactionFailed("inicializar configuración").message,
+      { originalError: error.message }
+    );
+  }
 }
 
 /**
@@ -102,8 +142,8 @@ export function initializeDefaults() {
  * @returns {Object} Configuration key-value pairs
  */
 export function getAll() {
-  // Ensure defaults are initialized
-  initializeDefaults();
+  // Note: Defaults are initialized once at server startup via ensureDefaults()
+  // This function no longer calls initializeDefaults() on every request
 
   const rows = query("SELECT key, value FROM configuration");
   const config = {};
@@ -141,61 +181,74 @@ export function get(key) {
 }
 
 /**
- * Update configuration values
+ * Update configuration values atomically
+ * All updates are wrapped in a single transaction - if any fails, all are rolled back
+ * Requirements: 1.1, 1.2, 1.3, 1.4
+ *
  * @param {Object} updates - Key-value pairs to update
  * @returns {Object} Updated configuration
- * @throws {ConfigValidationError} If validation fails
+ * @throws {ValidationError} If validation fails
+ * @throws {DatabaseError} If database operation fails
  */
 export function update(updates) {
-  // Validate all updates before applying any
+  // Phase 1: Validate ALL updates BEFORE starting transaction
+  // This ensures we fail fast on invalid data without touching the database
   for (const [key, value] of Object.entries(updates)) {
-    // Check if key is valid
+    // Check if key is valid (reject unknown keys)
     if (DEFAULT_CONFIG[key] === undefined) {
-      throw new ConfigValidationError(
-        `Clave de configuración desconocida: ${key}`,
-        key,
-      );
+      const errorInfo = ConfigErrors.unknownKey(key, Object.keys(DEFAULT_CONFIG));
+      throw new ValidationError(errorInfo.message, errorInfo.field, errorInfo.details);
     }
 
     // Validate numeric values
     if (NUMERIC_KEYS.includes(key)) {
       if (!isPositiveNumber(value)) {
-        throw new ConfigValidationError(
-          `El valor de ${key} debe ser un número positivo`,
-          key,
-        );
+        const errorInfo = ConfigErrors.numericInvalid(key, value, "203.00");
+        throw new ValidationError(errorInfo.message, errorInfo.field, errorInfo.details);
       }
     }
 
     // Validate email values
     if (EMAIL_KEYS.includes(key)) {
       if (!isValidEmail(value)) {
-        throw new ConfigValidationError(
-          `El formato de email para ${key} es inválido`,
-          key,
-        );
+        const errorInfo = ConfigErrors.emailInvalid(key, value);
+        throw new ValidationError(errorInfo.message, errorInfo.field, errorInfo.details);
       }
     }
   }
 
-  // Apply all updates
-  for (const [key, value] of Object.entries(updates)) {
-    const stringValue = String(value);
-    const existing = queryOne("SELECT key FROM configuration WHERE key = ?", [
-      key,
-    ]);
+  // Phase 2: Apply all updates in a single atomic transaction
+  // If ANY update fails, ALL changes are rolled back automatically
+  try {
+    transaction(() => {
+      const db = getDatabase();
 
-    if (existing) {
-      execute(
-        "UPDATE configuration SET value = ?, updated_at = datetime('now') WHERE key = ?",
-        [stringValue, key],
-      );
-    } else {
-      execute("INSERT INTO configuration (key, value) VALUES (?, ?)", [
-        key,
-        stringValue,
-      ]);
+      // Prepare UPSERT statement (INSERT...ON CONFLICT DO UPDATE)
+      // This handles both new keys and existing keys in one statement
+      const upsertStmt = db.prepare(`
+        INSERT INTO configuration (key, value, updated_at)
+        VALUES (?, ?, datetime('now'))
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = datetime('now')
+      `);
+
+      // Apply each update within the transaction
+      for (const [key, value] of Object.entries(updates)) {
+        const stringValue = String(value);
+        upsertStmt.run(key, stringValue);
+      }
+    });
+  } catch (error) {
+    // If it's already one of our errors, rethrow it
+    if (error instanceof ValidationError || error instanceof DatabaseError) {
+      throw error;
     }
+
+    // Wrap database errors with informative message
+    console.error("[Config] Transaction failed:", error.message);
+    const errorInfo = DatabaseErrors.transactionFailed("guardar configuración");
+    throw new DatabaseError(errorInfo.message, { originalError: error.message });
   }
 
   return getAll();
@@ -206,6 +259,7 @@ export default {
   get,
   update,
   initializeDefaults,
+  ensureDefaults,
   isValidEmail,
   isPositiveNumber,
   DEFAULT_CONFIG,

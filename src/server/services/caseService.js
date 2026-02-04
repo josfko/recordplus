@@ -11,9 +11,18 @@ import {
 import {
   validateAragExternalReference,
   generateAragReference,
+  generateAragReferenceInTransaction,
   generateParticularReference,
+  generateParticularReferenceInTransaction,
   aragReferenceExists,
 } from "./referenceGenerator.js";
+import {
+  ValidationError as AppValidationError,
+  ConflictError as AppConflictError,
+  NotFoundError as AppNotFoundError,
+  DatabaseError,
+} from "../errors.js";
+import { CaseErrors, ConflictErrors, DatabaseErrors } from "../errorMessages.js";
 
 // Valid case types
 export const CASE_TYPES = {
@@ -145,59 +154,107 @@ function validateCaseData(data) {
 }
 
 /**
- * Create a new case
+ * Create a new case atomically
+ * All operations (duplicate check, reference generation, insert) happen in a single transaction
+ * If any operation fails, all changes are rolled back including reference counter increments
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
+ *
  * @param {Object} data - Case data
  * @returns {Object} Created case
+ * @throws {ConflictError} If ARAG reference already exists
+ * @throws {ValidationError} If validation fails
+ * @throws {DatabaseError} If database operation fails
  */
 export function create(data) {
+  // Phase 1: Validate OUTSIDE the transaction (fail fast)
   validateCaseData(data);
-
-  // Check for duplicate ARAG reference
-  if (
-    data.type === CASE_TYPES.ARAG &&
-    aragReferenceExists(data.aragReference)
-  ) {
-    throw new ConflictError(
-      "Ya existe un expediente con esta referencia ARAG",
-      "aragReference"
-    );
-  }
-
-  const db = getDatabase();
-
-  // Generate internal reference based on type
-  let internalReference = null;
-  if (data.type === CASE_TYPES.ARAG || data.type === CASE_TYPES.TURNO_OFICIO) {
-    // ARAG and TURNO_OFICIO share the same IY sequence (IY + 6 digits)
-    internalReference = generateAragReference();
-  } else if (data.type === CASE_TYPES.PARTICULAR) {
-    const year = data.entryDate
-      ? new Date(data.entryDate).getFullYear()
-      : new Date().getFullYear();
-    internalReference = generateParticularReference(year);
-  }
 
   const entryDate = data.entryDate || new Date().toISOString().split("T")[0];
 
-  const result = db
-    .prepare(
-      `INSERT INTO cases (
-        type, client_name, internal_reference, arag_reference, 
-        designation, state, entry_date, observations
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      data.type,
-      data.clientName.trim(),
-      internalReference,
-      data.type === CASE_TYPES.ARAG ? data.aragReference : null,
-      data.type === CASE_TYPES.TURNO_OFICIO ? data.designation.trim() : null,
-      CASE_STATES.ABIERTO,
-      entryDate,
-      data.observations || ""
-    );
+  try {
+    // Phase 2: Atomic transaction for all database operations
+    const result = transaction(() => {
+      const db = getDatabase();
 
-  return getById(result.lastInsertRowid);
+      // Check for duplicate ARAG reference INSIDE the transaction
+      // This ensures no race condition between check and insert
+      if (data.type === CASE_TYPES.ARAG) {
+        const duplicateCheck = db
+          .prepare("SELECT 1 FROM cases WHERE arag_reference = ?")
+          .get(data.aragReference);
+
+        if (duplicateCheck) {
+          const errorInfo = CaseErrors.aragReferenceDuplicate(data.aragReference);
+          throw new ConflictError(errorInfo.message, errorInfo.field, errorInfo.details);
+        }
+      }
+
+      // Generate internal reference INSIDE the transaction
+      // If insert fails, counter increment will be rolled back
+      let internalReference = null;
+      if (data.type === CASE_TYPES.ARAG || data.type === CASE_TYPES.TURNO_OFICIO) {
+        internalReference = generateAragReferenceInTransaction(db);
+      } else if (data.type === CASE_TYPES.PARTICULAR) {
+        const year = data.entryDate
+          ? new Date(data.entryDate).getFullYear()
+          : new Date().getFullYear();
+        internalReference = generateParticularReferenceInTransaction(db, year);
+      }
+
+      // Insert the case
+      const insertResult = db
+        .prepare(
+          `INSERT INTO cases (
+            type, client_name, internal_reference, arag_reference,
+            designation, state, entry_date, observations
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          data.type,
+          data.clientName.trim(),
+          internalReference,
+          data.type === CASE_TYPES.ARAG ? data.aragReference : null,
+          data.type === CASE_TYPES.TURNO_OFICIO ? data.designation.trim() : null,
+          CASE_STATES.ABIERTO,
+          entryDate,
+          data.observations || ""
+        );
+
+      // Return the created case from within the transaction
+      return getByIdInternal(db, insertResult.lastInsertRowid);
+    });
+
+    return result;
+  } catch (error) {
+    // Re-throw our custom errors as-is
+    if (
+      error instanceof ConflictError ||
+      error instanceof ValidationError ||
+      error instanceof AppConflictError ||
+      error instanceof AppValidationError
+    ) {
+      throw error;
+    }
+
+    // Wrap other errors with informative message
+    console.error("[CaseService] Create failed:", error.message);
+    const errorInfo = DatabaseErrors.transactionFailed("crear expediente");
+    throw new DatabaseError(errorInfo.message, { originalError: error.message });
+  }
+}
+
+/**
+ * Get case by ID using a specific database connection (for use within transactions)
+ * Requirements: 2.1
+ *
+ * @param {Database} db - Database instance
+ * @param {number} id - Case ID
+ * @returns {Object|null} Case object or null
+ */
+function getByIdInternal(db, id) {
+  const row = db.prepare("SELECT * FROM cases WHERE id = ?").get(id);
+  if (!row) return null;
+  return mapRowToCase(row);
 }
 
 /**
@@ -268,24 +325,41 @@ export function list(filters = {}, pagination = {}) {
 }
 
 /**
- * Update a case
+ * Update a case with optimistic locking support
+ * If expectedVersion is provided, the update will only succeed if the current
+ * database version matches. This prevents lost updates when multiple users
+ * edit the same case simultaneously.
+ * Requirements: 3.2, 3.3, 3.4, 3.5
+ *
  * @param {number} id - Case ID
  * @param {Object} data - Data to update
+ * @param {number|null} expectedVersion - Optional version for optimistic locking
  * @returns {Object} Updated case
+ * @throws {NotFoundError} If case doesn't exist
+ * @throws {ConflictError} If version mismatch (concurrent modification detected)
+ * @throws {ValidationError} If validation fails
  */
-export function update(id, data) {
+export function update(id, data, expectedVersion = null) {
   const existing = getById(id);
   if (!existing) {
-    throw new NotFoundError("Expediente no encontrado");
+    const errorInfo = CaseErrors.notFound(id);
+    throw new NotFoundError(errorInfo.message);
   }
 
   // Archived cases can only update observations
   if (existing.state === CASE_STATES.ARCHIVADO) {
-    if (Object.keys(data).some((key) => key !== "observations")) {
-      throw new ValidationError(
-        "Los expedientes archivados solo permiten editar observaciones"
+    if (Object.keys(data).some((key) => key !== "observations" && key !== "version")) {
+      const errorInfo = CaseErrors.archivedCaseReadOnly(
+        Object.keys(data).find((k) => k !== "observations" && k !== "version")
       );
+      throw new ValidationError(errorInfo.message, errorInfo.field);
     }
+  }
+
+  // Optimistic locking: check version if provided
+  if (expectedVersion !== null && existing.version !== expectedVersion) {
+    const errorInfo = ConflictErrors.versionMismatch(expectedVersion, existing.version);
+    throw new ConflictError(errorInfo.message, errorInfo.field, errorInfo.details);
   }
 
   const allowedFields = ["clientName", "observations", "entryDate"];
@@ -309,10 +383,34 @@ export function update(id, data) {
     return existing;
   }
 
+  // Always increment version and update timestamp
+  updates.push("version = version + 1");
   updates.push("updated_at = datetime('now')");
+
+  // Build WHERE clause with version check for extra safety
+  let whereClause = "id = ?";
   params.push(id);
 
-  execute(`UPDATE cases SET ${updates.join(", ")} WHERE id = ?`, params);
+  if (expectedVersion !== null) {
+    whereClause += " AND version = ?";
+    params.push(expectedVersion);
+  }
+
+  const result = execute(
+    `UPDATE cases SET ${updates.join(", ")} WHERE ${whereClause}`,
+    params
+  );
+
+  // If no rows were affected and we had a version check, it's a conflict
+  if (result.changes === 0 && expectedVersion !== null) {
+    // Re-fetch to get current version for the error message
+    const current = getById(id);
+    const errorInfo = ConflictErrors.versionMismatch(
+      expectedVersion,
+      current?.version || "unknown"
+    );
+    throw new ConflictError(errorInfo.message, errorInfo.field, errorInfo.details);
+  }
 
   return getById(id);
 }
@@ -467,6 +565,9 @@ export function deleteCase(id) {
 
 /**
  * Map database row to case object
+ * Includes version field for optimistic locking (added in migration 003)
+ * Requirements: 3.1, 3.4
+ *
  * @param {Object} row - Database row
  * @returns {Object} Case object
  */
@@ -486,6 +587,8 @@ function mapRowToCase(row) {
     observations: row.observations,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    // Version for optimistic locking (defaults to 1 if column doesn't exist yet)
+    version: row.version ?? 1,
   };
 }
 
