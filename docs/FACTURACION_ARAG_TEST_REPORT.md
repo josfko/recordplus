@@ -341,7 +341,51 @@ The `@signpdf/signpdf` v3.x package exports the `sign` function as the default e
 + const signedPdf = await signpdf(pdfWithPlaceholder, signer);
 ```
 
-**Commit:** `d58cab1` - Pushed to GitHub, pending deployment to VPS
+**Commits:**
+- `d58cab1` - Initial fix attempt (incorrect)
+- `89ae5c3` - ESM/CJS interop fix
+- `5ccc8a0` - Custom AcaP12Signer for ACA certificate compatibility
+
+### BUG-004: ACA Certificate Incompatibility
+
+**Error Message:**
+```
+Cannot destructure property 'publicKey' of 'certBags[i].cert' as it is null.
+```
+
+**Root Cause:**
+The `@signpdf/signer-p12` P12Signer assumes `certBag[i].cert` is always populated,
+but ACA (Abogacía) certificates store certificate data in ASN1 format instead.
+
+**Solution:**
+Created custom `AcaP12Signer` class that:
+- Extends `@signpdf/utils` Signer base class
+- Handles multiple P12 formats (standard certBag, ASN1, safeContents)
+- Extracts certificates using robust multi-approach logic
+- Implements PKCS#7 signing with SHA-256
+
+### Cryptographic Signing Test Results
+
+**Test:** Generate minuta with ACA certificate
+**Result:** ✅ **SUCCESS**
+
+```json
+{
+  "success": true,
+  "data": {
+    "steps": [
+      {"step": "generate", "status": "completed"},
+      {"step": "sign", "status": "completed"},
+      {"step": "email", "status": "completed"}
+    ],
+    "documentId": 2
+  }
+}
+```
+
+**Files Generated:**
+- `minuta_1770235333182.pdf` - Original PDF
+- `minuta_1770235333182_signed.pdf` - **Cryptographically signed with ACA certificate**
 
 ### Deployment Required
 
@@ -359,10 +403,11 @@ pm2 restart all
 
 | ID | Issue | Severity | Status |
 |----|-------|----------|--------|
-| BUG-000 | Emails not delivered (localhost) | **CRITICAL** | Open - Needs investigation |
+| BUG-000 | Emails not delivered (localhost & production) | **CRITICAL** | Open - IONOS issue |
 | BUG-001 | Suplido mileage amount returns 0 (localhost) | High | Open |
 | BUG-002 | Certificate path 500 error (localhost) | High | Workaround applied |
-| BUG-003 | signpdf.sign is not a function (production) | **CRITICAL** | ✅ **FIXED** (pending deploy) |
+| BUG-003 | signpdf.sign is not a function (production) | **CRITICAL** | ✅ **FIXED** |
+| BUG-004 | ACA certificate incompatible with P12Signer | **CRITICAL** | ✅ **FIXED** (custom AcaP12Signer) |
 | UI-001 | Estado Procesal dropdown | Medium | Open |
 | UI-002 | Hardcoded email indicator | Low | Open |
 | UI-003 | Importe Calc. shows 0,00 € | Medium | Open |
