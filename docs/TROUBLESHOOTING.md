@@ -428,3 +428,255 @@ The whitelist is configured in the server's CORS settings.
 
 - [MDN: CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
 - [Express CORS middleware](https://expressjs.com/en/resources/middleware/cors.html)
+
+---
+
+## Issue: SMTP Email Not Working in Production
+
+**Date:** 2026-02-03
+**Severity:** High
+**Affected:** Email sending functionality (minutas, suplidos, hojas de encargo)
+
+### Symptoms
+
+- "Probar Conexión" button in Configuration shows error (timeout or connection refused)
+- Email works when testing locally but fails on deployed VPS
+- Error messages like:
+  - "Conexión rechazada" (Connection refused)
+  - "Tiempo de espera agotado" (Timeout)
+  - "Connection closed by server"
+
+### How SMTP Configuration Works
+
+**Important:** SMTP credentials are stored in the **SQLite database**, NOT in environment variables.
+
+Configuration is stored in the `configuration` table with these keys:
+- `smtp_host` - SMTP server (e.g., `smtp.ionos.es`)
+- `smtp_port` - Port number (587 for STARTTLS, 465 for SSL/TLS)
+- `smtp_secure` - `"false"` for STARTTLS (port 587), `"true"` for SSL/TLS (port 465)
+- `smtp_user` - Email/username for authentication
+- `smtp_password` - Password for authentication
+- `smtp_from` - "From" address (optional, defaults to smtp_user)
+
+To check current config on VPS:
+```bash
+sqlite3 /home/appuser/data/legal-cases.db \
+  "SELECT key, CASE WHEN key='smtp_password' THEN '***' ELSE value END FROM configuration WHERE key LIKE 'smtp%';"
+```
+
+### Root Cause: VPS Provider Blocking Outbound SMTP
+
+**Clouding.io (and most VPS providers) block outbound SMTP by default** to prevent spam.
+
+According to [Clouding.io's documentation](https://help.clouding.io/hc/en-us/articles/360010279719-SMTP-blocking):
+- Trial accounts have SMTP blocked
+- Paying customers should have it enabled, but may need to request it
+
+### Diagnosis
+
+**Step 1: SSH to the VPS**
+```bash
+ssh root@217.71.207.83
+# Enter your password when prompted
+```
+
+**Step 2: Test SMTP port connectivity**
+```bash
+nc -zv smtp.ionos.es 587 -w 5
+```
+
+Results:
+- `Connection succeeded!` → Port is open, issue is config/credentials
+- `Connection timed out` → **VPS is blocking outbound SMTP**
+
+**Step 3: Check PM2 logs for errors**
+```bash
+pm2 logs recordplus --lines 50 --nostream
+```
+Look for `[SMTP Test] Error:` entries.
+
+### Solution: Request SMTP Access from Clouding.io
+
+Send an email to **sales@clouding.io**:
+
+```
+Asunto: Solicitud de habilitación de SMTP saliente
+
+Hola,
+
+Soy cliente de Clouding y tengo un servidor VPS (IP: 217.71.207.83).
+
+Necesito enviar correos desde mi aplicación a través de un servidor SMTP
+externo (Ionos), pero las conexiones al puerto 587 están siendo bloqueadas.
+
+Según vuestro artículo de ayuda sobre "SMTP blocking", el tráfico SMTP
+está bloqueado en cuentas de prueba. ¿Podrían habilitarlo?
+
+Uso previsto: Aplicación privada de gestión de expedientes legales.
+Correos transaccionales individuales, no correo masivo.
+
+Gracias.
+```
+
+**Response time:** Usually same-day or within 24 hours.
+
+### After SMTP is Enabled
+
+**Step 1: Verify connectivity**
+```bash
+nc -zv smtp.ionos.es 587 -w 5
+# Should show: Connection succeeded!
+```
+
+**Step 2: Configure via Web UI**
+
+Go to `https://recordplus.work/#config` and fill in:
+
+| Field | Value (Ionos example) |
+|-------|----------------------|
+| Servidor SMTP | `smtp.ionos.es` |
+| Puerto | `587` |
+| Seguridad | `STARTTLS` (for port 587) |
+| Usuario | your Ionos email |
+| Contraseña | your Ionos password |
+| Remitente | (optional) |
+
+**Step 3: Test connection**
+
+Click "Probar Conexión" - should show green success.
+
+### Common SMTP Provider Settings
+
+| Provider | Host | Port | Security |
+|----------|------|------|----------|
+| Ionos (1&1) | `smtp.ionos.es` | 587 | STARTTLS |
+| Gmail | `smtp.gmail.com` | 587 | STARTTLS |
+| Outlook/Office 365 | `smtp.office365.com` | 587 | STARTTLS |
+| Generic SSL | varies | 465 | SSL/TLS |
+
+**Gmail note:** Requires "App Password" (not regular password). Enable 2FA first.
+
+### Clouding.io Firewall Notes
+
+The Clouding.io firewall panel shows rules for ports 465 and 587, but these are **inbound rules** (allowing connections TO your server), not outbound rules. Outbound SMTP is controlled at the infrastructure level and must be requested via support.
+
+### Related Files
+
+- `src/server/services/emailService.js` - Nodemailer configuration
+- `src/server/routes/arag.js` (lines 250-320) - `/api/email/test` endpoint
+- `src/server/services/configurationService.js` - Config defaults
+
+---
+
+## Issue: ACA Digital Certificate Not Found
+
+**Date:** 2026-02-03
+**Severity:** Medium
+**Affected:** PDF digital signature functionality
+
+### Symptoms
+
+- "Probar Certificado" button shows error
+- Error message: "Introduzca la ruta del certificado"
+- PDF signing falls back to visual signature only
+
+### Root Cause
+
+The `.p12` certificate file either:
+1. Doesn't exist on the VPS at the configured path
+2. Has a different filename than configured
+
+### Diagnosis
+
+**Step 1: Check what path is configured**
+
+Look at the Configuration page in the web UI, or query the database:
+```bash
+sqlite3 /home/appuser/data/legal-cases.db \
+  "SELECT value FROM configuration WHERE key='certificate_path';"
+```
+
+**Step 2: Check what files exist on VPS**
+```bash
+ls -la /home/appuser/data/certificates/
+```
+
+### Solution
+
+#### If certificate file doesn't exist: Upload it
+
+**From your local Mac:**
+```bash
+# Create directory on VPS (run as root)
+ssh root@217.71.207.83 "mkdir -p /home/appuser/data/certificates && chown appuser:appuser /home/appuser/data/certificates"
+
+# Upload certificate
+scp /path/to/your/certificate.p12 root@217.71.207.83:/home/appuser/data/certificates/
+
+# Fix permissions (run as root on VPS)
+ssh root@217.71.207.83 "chown appuser:appuser /home/appuser/data/certificates/*.p12 && chmod 600 /home/appuser/data/certificates/*.p12"
+```
+
+#### If certificate exists with different name: Update config
+
+If the file exists (e.g., `aca-23-07-25.p12`) but config points to different name:
+
+1. Go to `https://recordplus.work/#config`
+2. Update "Ruta del Certificado" to match actual filename:
+   ```
+   /home/appuser/data/certificates/aca-23-07-25.p12
+   ```
+3. Click "Guardar Configuración"
+4. Click "Probar Certificado"
+
+### Certificate Security
+
+The `.p12` file contains your private key. Ensure:
+- Permissions are `600` (owner read/write only)
+- Owned by `appuser`
+- Never commit to git repository
+
+```bash
+# Verify permissions
+ls -la /home/appuser/data/certificates/
+# Should show: -rw------- 1 appuser appuser ... filename.p12
+```
+
+### Related Files
+
+- `src/server/services/pdfSigningService.js` - Certificate loading and signing
+- `DEPLOYMENT_TROUBLESHOOTING.md` - ACA certificate deployment details
+
+---
+
+## Complete Production Configuration Checklist
+
+Use this checklist when setting up a new VPS or after a fresh deployment:
+
+### 1. VPS Access
+- [ ] Can SSH to VPS: `ssh root@217.71.207.83`
+- [ ] PM2 is running: `pm2 status`
+- [ ] App is healthy: `curl http://localhost:3000/api/health`
+
+### 2. SMTP Configuration
+- [ ] Outbound SMTP enabled by Clouding.io (contact support if needed)
+- [ ] Port 587 reachable: `nc -zv smtp.ionos.es 587 -w 5`
+- [ ] SMTP settings saved via web UI (`#config`)
+- [ ] "Probar Conexión" shows green success
+
+### 3. ACA Certificate
+- [ ] Certificate uploaded to `/home/appuser/data/certificates/`
+- [ ] Permissions correct: `chmod 600` and `chown appuser:appuser`
+- [ ] Path configured in web UI matches actual filename
+- [ ] "Probar Certificado" shows green success
+
+### 4. Network/DNS
+- [ ] Custom domain resolves: `dig recordplus.work +short`
+- [ ] API domain resolves: `dig api.recordplus.work +short`
+- [ ] Zero Trust configured for both domains
+- [ ] CORS whitelist includes custom domain
+
+### 5. Database
+- [ ] Database exists: `ls -la /home/appuser/data/legal-cases.db`
+- [ ] Migrations applied: check for all expected tables
+- [ ] Backups running: `crontab -l` (should show daily backup)
