@@ -18,9 +18,172 @@ import { PDFDocument, rgb } from "pdf-lib";
 import signpdfModule from "@signpdf/signpdf";
 // Handle ESM/CJS interop - the package exports a SignPdf instance as default
 const signpdf = signpdfModule.default || signpdfModule;
-import { P12Signer } from "@signpdf/signer-p12";
+import { Signer } from "@signpdf/utils";
 import { pdflibAddPlaceholder } from "@signpdf/placeholder-pdf-lib";
 import forge from "node-forge";
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CUSTOM ACA P12 SIGNER
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Custom P12 Signer for ACA (Abogacía) certificates
+ *
+ * The standard @signpdf/signer-p12 assumes certBag[i].cert is always populated,
+ * but ACA certificates may store certificate data in ASN1 format instead.
+ * This custom signer handles multiple P12 formats.
+ */
+class AcaP12Signer extends Signer {
+  /**
+   * @param {Buffer} p12Buffer - P12 certificate file contents
+   * @param {{ passphrase?: string }} options - Signer options
+   */
+  constructor(p12Buffer, options = {}) {
+    super();
+    this.p12Buffer = p12Buffer;
+    this.passphrase = options.passphrase || "";
+  }
+
+  /**
+   * Extract certificate from P12 bag, handling various formats
+   * @param {Object} bag - Certificate bag from forge
+   * @returns {Object|null} - Certificate object or null
+   */
+  static extractCertFromBag(bag) {
+    if (bag.cert) {
+      return bag.cert;
+    }
+    if (bag.asn1) {
+      try {
+        return forge.pki.certificateFromAsn1(bag.asn1);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Sign PDF buffer using P12 certificate
+   * @param {Buffer} pdfBuffer - PDF to sign
+   * @param {Date} [signingTime] - Optional signing timestamp
+   * @returns {Promise<Buffer>} - Signed PDF
+   */
+  async sign(pdfBuffer, signingTime = undefined) {
+    // Parse P12 file
+    const p12Der = forge.util.createBuffer(this.p12Buffer.toString("binary"));
+    const p12Asn1 = forge.asn1.fromDer(p12Der);
+    const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, this.passphrase);
+
+    // Extract private key
+    const keyBags = p12.getBags({
+      bagType: forge.pki.oids.pkcs8ShroudedKeyBag,
+    })[forge.pki.oids.pkcs8ShroudedKeyBag];
+
+    if (!keyBags || keyBags.length === 0) {
+      throw new Error("No se encontró la clave privada en el certificado P12.");
+    }
+    const privateKey = keyBags[0].key;
+
+    // Extract certificates using multiple approaches for ACA compatibility
+    const certBags = p12.getBags({
+      bagType: forge.pki.oids.certBag,
+    })[forge.pki.oids.certBag];
+
+    const certificates = [];
+    let signingCert = null;
+
+    // Process cert bags
+    if (certBags && certBags.length > 0) {
+      for (const bag of certBags) {
+        const cert = AcaP12Signer.extractCertFromBag(bag);
+        if (cert) {
+          certificates.push(cert);
+          // Find the certificate that matches the private key
+          if (
+            cert.publicKey &&
+            privateKey.n.compareTo(cert.publicKey.n) === 0 &&
+            privateKey.e.compareTo(cert.publicKey.e) === 0
+          ) {
+            signingCert = cert;
+          }
+        }
+      }
+    }
+
+    // Fallback: try safeContents for non-standard P12
+    if (!signingCert) {
+      try {
+        const safeContents = p12.safeContents;
+        if (safeContents) {
+          for (const safeContent of safeContents) {
+            if (safeContent.safeBags) {
+              for (const safeBag of safeContent.safeBags) {
+                const cert = AcaP12Signer.extractCertFromBag(safeBag);
+                if (cert && !certificates.includes(cert)) {
+                  certificates.push(cert);
+                  if (
+                    cert.publicKey &&
+                    privateKey.n.compareTo(cert.publicKey.n) === 0 &&
+                    privateKey.e.compareTo(cert.publicKey.e) === 0
+                  ) {
+                    signingCert = cert;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Safe contents access failed
+      }
+    }
+
+    if (!signingCert) {
+      throw new Error(
+        "No se encontró un certificado que coincida con la clave privada. " +
+          "El formato del certificado ACA puede requerir configuración adicional."
+      );
+    }
+
+    // Create PKCS#7 signed data
+    const p7 = forge.pkcs7.createSignedData();
+    p7.content = forge.util.createBuffer(pdfBuffer.toString("binary"));
+
+    // Add all certificates to the signature
+    for (const cert of certificates) {
+      p7.addCertificate(cert);
+    }
+
+    // Add signer with SHA-256
+    p7.addSigner({
+      key: privateKey,
+      certificate: signingCert,
+      digestAlgorithm: forge.pki.oids.sha256,
+      authenticatedAttributes: [
+        {
+          type: forge.pki.oids.contentType,
+          value: forge.pki.oids.data,
+        },
+        {
+          type: forge.pki.oids.signingTime,
+          value: signingTime || new Date(),
+        },
+        {
+          type: forge.pki.oids.messageDigest,
+          // value will be auto-populated at signing time
+        },
+      ],
+    });
+
+    // Sign in detached mode
+    p7.sign({ detached: true });
+
+    // Return DER-encoded signature
+    const der = forge.asn1.toDer(p7.toAsn1()).getBytes();
+    return Buffer.from(der, "binary");
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SIGNATURE STRATEGY INTERFACE
@@ -189,10 +352,10 @@ class CryptoSignatureStrategy extends SignatureStrategy {
       location: "Málaga, España",
     });
 
-    // Create signer with P12 certificate
+    // Create signer with P12 certificate using ACA-compatible signer
     let signer;
     try {
-      signer = new P12Signer(certBuffer, {
+      signer = new AcaP12Signer(certBuffer, {
         passphrase: this.certificatePassword,
       });
     } catch (err) {
