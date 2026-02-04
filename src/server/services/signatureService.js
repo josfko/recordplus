@@ -210,7 +210,7 @@ class CryptoSignatureStrategy extends SignatureStrategy {
     // Sign PDF
     try {
       const pdfWithPlaceholder = await pdfDoc.save();
-      const signedPdf = await signpdf.sign(pdfWithPlaceholder, signer);
+      const signedPdf = await signpdf(pdfWithPlaceholder, signer);
       return Buffer.from(signedPdf);
     } catch (err) {
       if (
