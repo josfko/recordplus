@@ -15,7 +15,9 @@
  */
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { PDFDocument, rgb } from "pdf-lib";
-import signpdf from "@signpdf/signpdf";
+import signpdfModule from "@signpdf/signpdf";
+// Handle ESM/CJS interop - the package exports a SignPdf instance as default
+const signpdf = signpdfModule.default || signpdfModule;
 import { P12Signer } from "@signpdf/signer-p12";
 import { pdflibAddPlaceholder } from "@signpdf/placeholder-pdf-lib";
 import forge from "node-forge";
@@ -210,7 +212,7 @@ class CryptoSignatureStrategy extends SignatureStrategy {
     // Sign PDF
     try {
       const pdfWithPlaceholder = await pdfDoc.save();
-      const signedPdf = await signpdf(pdfWithPlaceholder, signer);
+      const signedPdf = await signpdf.sign(pdfWithPlaceholder, signer);
       return Buffer.from(signedPdf);
     } catch (err) {
       if (
