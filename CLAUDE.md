@@ -1,5 +1,7 @@
 # Record+ - Legal Case Management System
 
+CLAUDE.md is living document. It should be carafully updated to reflect important changes.
+
 ## Project Overview
 
 Record+ is a legal case file management system (sistema de gestión de expedientes) for a Spanish law firm. It handles three types of legal cases: ARAG insurance cases, private client cases (Particulares), and public defender cases (Turno de Oficio).
@@ -129,6 +131,15 @@ GET    /api/dashboard          - Get dashboard metrics
 GET    /api/config             - Get all configuration
 PUT    /api/config             - Update configuration
 
+# ARAG Facturación
+POST   /api/cases/:id/minuta   - Generate, sign, and send minuta
+POST   /api/cases/:id/suplido  - Generate suplido (requires district in body)
+GET    /api/cases/:id/history  - Get document and email history
+GET    /api/documents/:id/download - Download a document
+POST   /api/email/test         - Test SMTP connection
+GET    /api/mileage-rates      - Get mileage rates for all districts
+POST   /api/arag/cases/:caseId/emails/:emailId/retry - Retry failed email
+
 POST   /api/export             - Export all data as JSON
 POST   /api/import             - Import data from JSON
 
@@ -240,6 +251,95 @@ See `.kiro/specs/responsive-constraints/` for full specification.
   'mileage_antequera': 0.00
 }
 ```
+
+## Facturación ARAG Module
+
+The Facturación ARAG module handles automated invoice generation and email delivery for ARAG insurance cases.
+
+### Workflow
+
+1. **Minuta Generation** (`POST /api/cases/:id/minuta`)
+   - Generates PDF invoice with fixed fee (203€ + 21% IVA = 245.63€)
+   - Signs document (visual signature by default, crypto when certificate configured)
+   - Records document in history
+   - Sends email to ARAG if SMTP configured
+   - Records email status (SENT/ERROR)
+
+2. **Suplido Generation** (`POST /api/cases/:id/suplido`)
+   - Requires case to be in JUDICIAL state
+   - Requires judicial district selection
+   - Calculates mileage amount from configuration
+   - Same workflow as minuta (generate → sign → record → email)
+
+### Judicial Districts
+
+Valid districts for suplidos (configured in Configuration page):
+- Torrox, Vélez-Málaga, Torremolinos, Fuengirola, Marbella, Estepona, Antequera
+
+### SMTP Configuration
+
+Required settings in Configuration page for email delivery:
+- **smtp_host**: SMTP server hostname
+- **smtp_port**: Port (587 for STARTTLS, 465 for SSL)
+- **smtp_secure**: 'true' for SSL, 'false' for STARTTLS
+- **smtp_user**: Username/email
+- **smtp_password**: Password or app password
+- **smtp_from**: Sender email address
+
+#### Example SMTP Configurations
+
+**Gmail (requires App Password):**
+```
+Host: smtp.gmail.com
+Port: 587
+Security: STARTTLS
+User: your-email@gmail.com
+Password: xxxx-xxxx-xxxx-xxxx (16-char app password)
+```
+
+**Office 365:**
+```
+Host: smtp.office365.com
+Port: 587
+Security: STARTTLS
+User: your-email@domain.com
+Password: your-password
+```
+
+### Error Handling
+
+SMTP errors are mapped to user-friendly Spanish messages:
+- ECONNREFUSED → "Conexión rechazada"
+- EAUTH → "Error de autenticación"
+- ETIMEDOUT → "Tiempo de espera agotado"
+- ESOCKET → "Error de conexión"
+- EENVELOPE → "Destinatario inválido"
+
+### Email Retry
+
+Failed emails can be retried via:
+- Retry button in the timeline UI
+- API: `POST /api/arag/cases/:caseId/emails/:emailId/retry`
+
+### Services
+
+| Service | File | Description |
+|---------|------|-------------|
+| MinutaWorkflowService | `minutaWorkflowService.js` | Orchestrates complete workflow |
+| PDFGeneratorService | `pdfGeneratorService.js` | Creates PDF documents |
+| SignatureService | `signatureService.js` | Signs PDFs (visual or crypto) |
+| EmailService | `emailService.js` | SMTP email delivery |
+| DocumentHistoryService | `documentHistoryService.js` | Tracks generated documents |
+| EmailHistoryService | `emailHistoryService.js` | Tracks email attempts |
+
+### Digital Signature
+
+**Current Implementation:** Visual signature (text box with timestamp)
+
+**Future:** Cryptographic signature ready via strategy pattern
+- Configure `certificate_path` and `certificate_password` in Configuration
+- System auto-switches to crypto when certificate is available
+- Requires: `@signpdf/signpdf`, `@signpdf/signer-p12` packages
 
 ## Testing Requirements
 

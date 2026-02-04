@@ -320,6 +320,69 @@ router.post("/test", async (req, res, next) => {
 });
 
 /**
+ * POST /api/arag/cases/:caseId/emails/:emailId/retry
+ * Retry a failed email
+ * Re-sends the email associated with a failed email history entry
+ */
+router.post("/cases/:caseId/emails/:emailId/retry", async (req, res, next) => {
+  try {
+    const caseId = parseInt(req.params.caseId, 10);
+    const emailId = parseInt(req.params.emailId, 10);
+
+    if (isNaN(caseId) || isNaN(emailId)) {
+      return res.status(400).json({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "ID de expediente o email inválido",
+        },
+      });
+    }
+
+    const caseData = getById(caseId);
+    if (!caseData) {
+      return res.status(404).json({
+        error: { code: "NOT_FOUND", message: "Expediente no encontrado" },
+      });
+    }
+
+    const config = getConfig();
+    const workflow = new MinutaWorkflowService(config);
+
+    const result = await workflow.retryEmail(emailId, caseId);
+
+    res.json({
+      success: true,
+      message: "Email reenviado correctamente",
+      data: result,
+    });
+  } catch (error) {
+    // Handle SmtpError specifically for user-friendly messages
+    if (error.name === "SmtpError") {
+      return res.status(500).json({
+        error: {
+          code: error.code,
+          message: error.getFullMessage(),
+          details: error.details,
+          action: error.action,
+        },
+      });
+    }
+
+    // Handle validation errors from workflow
+    if (error.message.includes("no encontrad")) {
+      return res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: error.message,
+        },
+      });
+    }
+
+    next(error);
+  }
+});
+
+/**
  * GET /api/mileage-rates
  * Get mileage rates for all districts
  */

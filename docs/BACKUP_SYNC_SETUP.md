@@ -162,9 +162,45 @@ In Mac Syncthing UI (http://localhost:8384):
 
 ### Step 4.3: Verify Sync
 
-1. Create a test backup in the app (Admin Panel → Copias de Seguridad → Crear Copia Ahora)
+1. Create a test backup on the VPS (see below)
 2. Watch the Syncthing UIs - you should see sync activity
 3. Check `~/Documents/RecordPlus-Backups/` on your Mac - the backup file should appear
+
+**Create a test backup on VPS:**
+```bash
+sudo -u appuser sqlite3 /home/appuser/data/legal-cases.db ".backup '/home/appuser/backups/legal-cases-test.db'"
+ls -la /home/appuser/backups/
+```
+
+**Check on Mac:**
+```bash
+ls -la ~/Documents/RecordPlus-Backups/
+```
+
+You should see `legal-cases-test.db` appear within seconds.
+
+---
+
+## Part 4.5: Alternative Backup Methods
+
+### Method 1: Via App UI (after deployment)
+Navigate to **Admin Panel → Copias de Seguridad → Crear Copia Ahora**
+
+### Method 2: Direct SSH Command (always works)
+Run on VPS via SSH/Termius:
+```bash
+# Create dated backup
+sudo -u appuser sqlite3 /home/appuser/data/legal-cases.db ".backup '/home/appuser/backups/legal-cases-$(date +%Y%m%d-%H%M%S).db'"
+
+# Verify
+ls -la /home/appuser/backups/
+```
+
+### Method 3: Existing Cron Job (automatic daily)
+The server already has a cron job that creates backups at 3 AM daily:
+- Location: `/home/appuser/backup.sh`
+- Output: `/home/appuser/backups/legal-cases-YYYYMMDD.db`
+- Retention: 30 days (older backups auto-deleted)
 
 ---
 
@@ -314,5 +350,69 @@ sudo chmod 755 /home/appuser/backups
 | Mac backup folder | `~/Documents/RecordPlus-Backups/` |
 | Start Syncthing (Mac) | `brew services start syncthing` |
 | Start Syncthing (VPS) | `sudo systemctl start syncthing@appuser` |
-| Create backup | App → Admin Panel → Copias de Seguridad → Crear Copia Ahora |
-| View in TablePlus | File → Open → select `.db` file |
+| Create backup (App) | Admin Panel → Copias de Seguridad → Crear Copia Ahora |
+| Create backup (SSH) | `sudo -u appuser sqlite3 /home/appuser/data/legal-cases.db ".backup '/home/appuser/backups/legal-cases-$(date +%Y%m%d).db'"` |
+| View in TablePlus | File → Open → select `.db` file from `~/Documents/RecordPlus-Backups/` |
+| View in Beekeeper | New Connection → SQLite → Choose File → select `.db` file |
+
+---
+
+## Part 8: Extend to More Devices via iCloud
+
+If you want backups available on all your Apple devices (iPhone, iPad, other Macs) without setting up Syncthing on each one, use iCloud Drive.
+
+### Option A: Move Syncthing folder to iCloud Drive
+
+1. Stop Syncthing on Mac:
+   ```bash
+   brew services stop syncthing
+   ```
+
+2. Move the backup folder to iCloud:
+   ```bash
+   mv ~/Documents/RecordPlus-Backups ~/Library/Mobile\ Documents/com~apple~CloudDocs/RecordPlus-Backups
+   ```
+
+3. Update Syncthing folder path:
+   - Open http://localhost:8384
+   - Edit "RecordPlus Backups" folder
+   - Change path to: `~/Library/Mobile Documents/com~apple~CloudDocs/RecordPlus-Backups`
+   - Save
+
+4. Restart Syncthing:
+   ```bash
+   brew services start syncthing
+   ```
+
+Now backups sync: **VPS → Mac (Syncthing) → iCloud → all Apple devices**
+
+### Option B: Create a symlink (simpler)
+
+Keep Syncthing folder where it is, but make it appear in iCloud:
+
+```bash
+ln -s ~/Documents/RecordPlus-Backups ~/Library/Mobile\ Documents/com~apple~CloudDocs/RecordPlus-Backups
+```
+
+The folder will now appear in iCloud Drive on all your devices.
+
+### Accessing on iPhone/iPad
+
+1. Open the **Files** app
+2. Go to **iCloud Drive**
+3. Open **RecordPlus-Backups** folder
+4. Tap any `.db` file to preview (limited view) or share to a SQLite app
+
+**Note:** To fully browse SQLite on iOS, you'd need an app like "DB Browser for SQLite" or similar.
+
+---
+
+## Setup Completed Checklist
+
+- [x] Syncthing installed on VPS
+- [x] Syncthing installed on Mac
+- [x] Devices paired
+- [x] Folder shared (VPS → Mac)
+- [x] Test backup synced successfully
+- [ ] Deploy backup API to production (optional - SSH method always works)
+- [ ] Extend to iCloud (optional - for access on all Apple devices)

@@ -222,27 +222,35 @@ export class MinutaWorkflowService {
   }
 
   /**
-   * Retry failed email for a document
-   * @param {number} caseId - Case ID
-   * @param {number} documentId - Document ID
-   * @param {Object} caseData - Case information
-   * @param {Object} config - System configuration
-   * @returns {Promise<Object>} Retry result
+   * Retry a failed email by email history ID
+   * Fetches the original email details and attempts to resend
+   *
+   * @param {number} emailId - Email history ID of the failed email
+   * @param {number} caseId - Case ID for verification
+   * @returns {Promise<Object>} Retry result with new emailId
+   * @throws {Error} If email not found, wrong case, or document missing
    */
-  async retryEmail(caseId, documentId, caseData, config) {
-    const doc = this.documentHistory.getById(documentId);
-    if (!doc) {
-      throw new Error("Documento no encontrado");
+  async retryEmail(emailId, caseId) {
+    // Get the original failed email record
+    const originalEmail = this.emailHistory.getById(emailId);
+    if (!originalEmail) {
+      throw new Error("Email no encontrado en el historial");
     }
 
-    const emailTo = config.arag_email || "facturacionsiniestros@arag.es";
-    const emailSubject =
-      doc.document_type === "MINUTA"
-        ? EmailService.formatMinutaSubject(caseData.aragReference)
-        : EmailService.formatSuplidoSubject(
-            caseData.aragReference,
-            caseData.judicialDistrict,
-          );
+    // Verify the email belongs to the correct case
+    if (originalEmail.case_id !== caseId) {
+      throw new Error("El email no pertenece a este expediente");
+    }
+
+    // Get the associated document
+    const doc = this.documentHistory.getById(originalEmail.document_id);
+    if (!doc) {
+      throw new Error("Documento asociado no encontrado");
+    }
+
+    // Use the same recipient and subject from the original email
+    const emailTo = originalEmail.recipient;
+    const emailSubject = originalEmail.subject;
 
     try {
       await this.emailService.sendEmail({
@@ -251,9 +259,10 @@ export class MinutaWorkflowService {
         attachmentPath: doc.file_path,
       });
 
+      // Record successful retry
       const emailRecord = this.emailHistory.create({
         caseId,
-        documentId,
+        documentId: originalEmail.document_id,
         recipient: emailTo,
         subject: emailSubject,
         status: "SENT",
@@ -261,13 +270,14 @@ export class MinutaWorkflowService {
 
       return { success: true, emailId: emailRecord.id };
     } catch (error) {
+      // Record the retry failure
       this.emailHistory.create({
         caseId,
-        documentId,
+        documentId: originalEmail.document_id,
         recipient: emailTo,
         subject: emailSubject,
         status: "ERROR",
-        errorMessage: error.message,
+        errorMessage: error.message || error.getFullMessage?.() || "Error desconocido",
       });
       throw error;
     }

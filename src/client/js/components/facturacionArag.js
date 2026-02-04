@@ -446,6 +446,7 @@ export class FacturacionAragView {
           type: "email",
           color: isError ? "red" : "green",
           emailDetails: {
+            id: email.id,
             to: email.recipient,
             subject: email.subject,
             status: email.status,
@@ -528,7 +529,18 @@ export class FacturacionAragView {
               ${
                 event.emailDetails.status === "ERROR"
                   ? `
-                <span class="timeline-email-error">${event.emailDetails.error || "Error desconocido"}</span>
+                <div class="timeline-email-error-container">
+                  <span class="timeline-email-error">${event.emailDetails.error || "Error desconocido"}</span>
+                  <button class="btn btn-small btn-outline retry-email-btn"
+                          data-email-id="${event.emailDetails.id}"
+                          data-case-id="${this.caseId}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="23 4 23 10 17 10"/>
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                    </svg>
+                    Reintentar
+                  </button>
+                </div>
               `
                   : ""
               }
@@ -781,6 +793,9 @@ export class FacturacionAragView {
       });
     });
 
+    // Email retry button clicks
+    this.attachRetryEventListeners();
+
     // Refresh history button
     document
       .querySelector(".facturacion-history .btn-icon")
@@ -807,11 +822,73 @@ export class FacturacionAragView {
                   }
                 });
               });
+            // Re-attach retry button listeners
+            this.attachRetryEventListeners();
           }
           showToast("Historial actualizado", "success");
         } catch (error) {
           showToast(`Error: ${error.message}`, "error");
         }
       });
+  }
+
+  /**
+   * Attach event listeners to retry email buttons
+   * Called after render and after history refresh
+   */
+  attachRetryEventListeners() {
+    document.querySelectorAll(".retry-email-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        const emailId = e.currentTarget.dataset.emailId;
+        const caseId = e.currentTarget.dataset.caseId;
+
+        if (!emailId || !caseId) return;
+
+        // Disable button and show loading state
+        e.currentTarget.disabled = true;
+        const originalContent = e.currentTarget.innerHTML;
+        e.currentTarget.innerHTML = `
+          <svg class="spinner" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          Reintentando...
+        `;
+
+        try {
+          showToast("Reintentando envío de email...", "info");
+          await api.retryEmail(caseId, emailId);
+          showToast("Email reenviado correctamente", "success");
+
+          // Refresh history to show updated status
+          const historyResult = await api.getCaseHistory(caseId);
+          this.history = historyResult.data || { documents: [], emails: [] };
+
+          const timelineContainer = document.querySelector(".timeline");
+          if (timelineContainer) {
+            timelineContainer.innerHTML = this.renderTimeline(this.caseData);
+            this.attachRetryEventListeners();
+            // Re-attach document click listeners
+            document
+              .querySelectorAll(".timeline-doc-clickable")
+              .forEach((el) => {
+                el.addEventListener("click", async () => {
+                  const docId = el.dataset.docId;
+                  if (!docId) return;
+                  try {
+                    await api.downloadDocument(docId);
+                  } catch (error) {
+                    showToast(`Error al descargar: ${error.message}`, "error");
+                  }
+                });
+              });
+          }
+        } catch (error) {
+          showToast(`Error al reenviar: ${error.message}`, "error");
+          // Restore button state
+          e.currentTarget.disabled = false;
+          e.currentTarget.innerHTML = originalContent;
+        }
+      });
+    });
   }
 }

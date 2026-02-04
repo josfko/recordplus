@@ -4349,6 +4349,43 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   margin-top: 2px;
 }
 
+.timeline-email-error-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.timeline-email-error-container .retry-email-btn {
+  align-self: flex-start;
+  margin-left: 16px;
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.timeline-email-error-container .retry-email-btn:hover {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.timeline-email-error-container .retry-email-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.timeline-email-error-container .retry-email-btn svg {
+  flex-shrink: 0;
+}
+
 /* Timeline empty state */
 .timeline-empty {
   text-align: center;

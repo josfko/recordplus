@@ -647,11 +647,33 @@ class ApiClient {
   }
 
   /**
-   * Download a document
+   * Get download URL for a document
    * @param {number} documentId - Document ID
+   * @returns {string} Download URL
    */
   getDocumentDownloadUrl(documentId) {
     return `${this.baseUrl}/documents/${documentId}/download`;
+  }
+
+  /**
+   * Download a document by opening it in a new tab
+   * @param {number} documentId - Document ID
+   */
+  downloadDocument(documentId) {
+    const url = this.getDocumentDownloadUrl(documentId);
+    window.open(url, "_blank");
+  }
+
+  /**
+   * Retry a failed email
+   * @param {number} caseId - Case ID
+   * @param {number} emailId - Email ID
+   * @returns {Promise<Object>} Retry result
+   */
+  async retryEmail(caseId, emailId) {
+    return this.request(`/arag/cases/${caseId}/emails/${emailId}/retry`, {
+      method: "POST",
+    });
   }
 
   /**
