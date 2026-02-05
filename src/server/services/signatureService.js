@@ -343,6 +343,58 @@ class CryptoSignatureStrategy extends SignatureStrategy {
       throw new Error(`Error al leer información del certificado: ${err.message}`);
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ADD VISUAL SIGNATURE BOX ON LAST PAGE
+    // This provides immediate visual confirmation that the document is signed,
+    // complementing the invisible cryptographic signature.
+    // ═══════════════════════════════════════════════════════════════════════════
+    const pages = pdfDoc.getPages();
+    const lastPage = pages[pages.length - 1];
+
+    const signatureY = 40;
+    const signatureX = 50;
+    const boxWidth = 280;
+    const boxHeight = 45;
+
+    // Draw signature box with light green background
+    lastPage.drawRectangle({
+      x: signatureX,
+      y: signatureY - 5,
+      width: boxWidth,
+      height: boxHeight,
+      borderColor: rgb(0.3, 0.5, 0.3),
+      borderWidth: 1,
+      color: rgb(0.95, 0.98, 0.95),
+    });
+
+    // Signer name from certificate
+    const signerName = certInfo.cn || "Firmante";
+    lastPage.drawText(`Firmado digitalmente por: ${signerName}`, {
+      x: signatureX + 8,
+      y: signatureY + 22,
+      size: 9,
+      color: rgb(0.2, 0.2, 0.2),
+    });
+
+    // Signing date/time
+    const signatureDate = new Date().toLocaleString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    lastPage.drawText(`Fecha de firma: ${signatureDate}`, {
+      x: signatureX + 8,
+      y: signatureY + 8,
+      size: 8,
+      color: rgb(0.4, 0.4, 0.4),
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ADD CRYPTOGRAPHIC SIGNATURE PLACEHOLDER
+    // ═══════════════════════════════════════════════════════════════════════════
+
     // Add signature placeholder with certificate metadata
     pdflibAddPlaceholder({
       pdfDoc,
