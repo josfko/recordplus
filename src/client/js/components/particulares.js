@@ -325,14 +325,16 @@ export class ParticularesView {
     // Add document history events
     if (history.documents && history.documents.length > 0) {
       history.documents.forEach((doc) => {
+        // Extract filename from file_path (database returns snake_case)
+        const filename = doc.file_path ? doc.file_path.split("/").pop() : "documento.pdf";
         events.push({
-          date: doc.createdAt,
+          date: doc.generated_at,
           title: doc.signed ? "Hoja de Encargo Firmada" : "Hoja de Encargo Generada",
           type: "document",
           color: doc.signed ? "green" : "indigo",
           documents: [{
             id: doc.id,
-            name: doc.filename,
+            name: filename,
             signed: doc.signed,
           }],
         });
@@ -344,15 +346,15 @@ export class ParticularesView {
       history.emails.forEach((email) => {
         const isError = email.status === "ERROR";
         events.push({
-          date: email.sentAt,
+          date: email.sent_at,
           title: isError ? "Error al Enviar Email" : "Hoja de Encargo Enviada",
           type: "email",
           color: isError ? "red" : "green",
           emailDetails: {
-            to: email.toAddress,
+            to: email.recipient,
             subject: email.subject,
             status: email.status,
-            error: email.errorMessage,
+            error: email.error_message,
           },
         });
       });
@@ -459,8 +461,8 @@ export class ParticularesView {
   getLatestDocument() {
     const docs = this.history?.documents || [];
     if (docs.length === 0) return null;
-    // Sort by createdAt descending and return the most recent
-    const sorted = [...docs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Sort by generated_at descending and return the most recent (database uses snake_case)
+    const sorted = [...docs].sort((a, b) => new Date(b.generated_at) - new Date(a.generated_at));
     return sorted[0];
   }
 
@@ -471,8 +473,8 @@ export class ParticularesView {
     const emails = this.history?.emails || [];
     const sent = emails.filter(e => e.status === 'SENT');
     if (sent.length === 0) return null;
-    // Sort by sentAt descending and return the most recent
-    const sorted = [...sent].sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt));
+    // Sort by sent_at descending and return the most recent (database uses snake_case)
+    const sorted = [...sent].sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at));
     return sorted[0];
   }
 
@@ -530,7 +532,7 @@ export class ParticularesView {
             </div>
             <div class="status-step-content">
               <span class="status-step-label">Generado</span>
-              <span class="status-step-meta">${this.formatTimelineDate(latestDoc.createdAt)}</span>
+              <span class="status-step-meta">${this.formatTimelineDate(latestDoc.generated_at)}</span>
             </div>
           </div>
 
@@ -549,7 +551,6 @@ export class ParticularesView {
             </div>
             <div class="status-step-content">
               <span class="status-step-label">${isSigned ? 'Firmado' : 'Sin firmar'}</span>
-              ${isSigned && latestDoc.signedAt ? `<span class="status-step-meta">${this.formatTimelineDate(latestDoc.signedAt)}</span>` : ''}
             </div>
           </div>
 
@@ -568,7 +569,7 @@ export class ParticularesView {
             </div>
             <div class="status-step-content">
               <span class="status-step-label">${isSent ? 'Enviado' : 'No enviado'}</span>
-              ${isSent ? `<span class="status-step-email">${latestEmail.toAddress}</span>` : ''}
+              ${isSent ? `<span class="status-step-email">${latestEmail.recipient}</span>` : ''}
             </div>
           </div>
         </div>
@@ -642,7 +643,7 @@ export class ParticularesView {
       }
     }
 
-    const filename = latestDoc?.filename || 'PLANTILLA_PARTICULAR_V2.PDF';
+    const filename = latestDoc?.file_path ? latestDoc.file_path.split("/").pop() : 'PLANTILLA_PARTICULAR_V2.PDF';
 
     return `
       <div class="card-footer-green">
