@@ -18,6 +18,42 @@ Before writing any code:
 3. Then implement the code
 4. Run verification and iterate until it passes
 
+## Testing Guidelines
+
+### Email Testing
+- **NEVER use production email addresses** (like facturacionsiniestros@arag.es) for testing
+- Use approved test addresses (e.g., soniadeveloper1@gmail.com) or Mailtrap sandbox
+- **Don't trust SMTP success responses** - verify actual delivery:
+  - Check recipient's inbox (not just "250 OK" from server)
+  - Use `emailTestService.js` for automated verification with Mailtrap
+
+### Email Test Service
+Located at: `src/server/services/emailTestService.js`
+- `verifyEmailDelivery({subject, to})` - Verify email actually arrived in Mailtrap
+- `documentEmailTestResult({testName, smtpResponse, deliveryVerification})` - Document both API and actual outcome
+- `clearMailtrapInbox()` - Clean inbox before tests
+
+### Mailtrap Setup (for sandbox testing)
+```bash
+# Add to .env for test environment
+MAILTRAP_USER=your_mailtrap_user
+MAILTRAP_PASSWORD=your_mailtrap_password
+MAILTRAP_API_TOKEN=your_api_token
+MAILTRAP_INBOX_ID=your_inbox_id
+MAILTRAP_ACCOUNT_ID=your_account_id
+```
+
+### Test Journey Documentation
+Use template at: `docs/templates/TEST_JOURNEY_TEMPLATE.md`
+- Always document API response AND verified outcome
+- Separate "system says success" from "actually worked"
+
+## Documentation Guidelines
+When documenting test results:
+1. Record the API/system response
+2. Record the **verified end-to-end outcome**
+3. Note any discrepancies (false positives)
+
 ## Comunication
 1. Always specify exactly where do i have to run a command you tell me to run
 
@@ -305,6 +341,28 @@ Security: STARTTLS
 User: your-email@domain.com
 Password: your-password
 ```
+
+**Basenet (camaraygamero.org - PRODUCTION):**
+```
+Host: smtp.basenet.nl
+Port: 587
+Security: STARTTLS
+User: abogados@camaraygamero.org
+Password: [from Basenet: Ajustes → Cuentas de Correo]
+From: abogados@camaraygamero.org
+```
+Note: Basenet manages both incoming (MX) and outgoing (SMTP) email for this domain.
+SPF record includes: `include:_spf.basenet.nl`
+
+**Mailtrap (TESTING ONLY):**
+```
+Host: sandbox.smtp.mailtrap.io
+Port: 2525
+Security: none
+User: [from Mailtrap inbox settings]
+Password: [from Mailtrap inbox settings]
+```
+See `src/server/services/emailTestService.js` for verification helpers.
 
 ### Error Handling
 
