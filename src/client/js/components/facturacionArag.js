@@ -67,11 +67,18 @@ export class FacturacionAragView {
     const vatAmount = (baseRate * vatRate) / 100;
     const totalAmount = baseRate + vatAmount;
 
-    // Get mileage for district
-    const districtKey = `mileage_${(c.judicialDistrict || "")
-      .toLowerCase()
-      .replace(/[^a-z]/g, "_")}`;
-    const mileageAmount = parseFloat(cfg[districtKey]) || 0;
+    // Get mileage for district - use mapping to handle special characters
+    const districtToKeyMap = {
+      "Torrox": "mileage_torrox",
+      "Vélez-Málaga": "mileage_velez_malaga",
+      "Torremolinos": "mileage_torremolinos",
+      "Fuengirola": "mileage_fuengirola",
+      "Marbella": "mileage_marbella",
+      "Estepona": "mileage_estepona",
+      "Antequera": "mileage_antequera",
+    };
+    const districtKey = districtToKeyMap[c.judicialDistrict] || "";
+    const mileageAmount = districtKey ? (parseFloat(cfg[districtKey]) || 0) : 0;
 
     // Status display
     const statusInfo = this.getStatusInfo(c.state);
@@ -163,13 +170,21 @@ export class FacturacionAragView {
 
               <div class="form-group">
                 <label class="form-label">Estado Procesal</label>
-                <div class="status-display status-${statusInfo.color}">
-                  <span class="status-dot"></span>
-                  <span>${statusInfo.text}</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </div>
+                ${c.state === "ARCHIVADO"
+                  ? `<div class="status-display status-${statusInfo.color}">
+                      <span class="status-dot"></span>
+                      <span>${statusInfo.text}</span>
+                    </div>`
+                  : `<div class="select-wrapper select-wrapper-status select-wrapper-${statusInfo.color}">
+                      <select class="form-select form-select-status" id="estado-procesal">
+                        <option value="ABIERTO" ${c.state === "ABIERTO" ? "selected" : ""}>Abierto</option>
+                        <option value="JUDICIAL" ${c.state === "JUDICIAL" ? "selected" : ""}>Judicial</option>
+                      </select>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                    </div>`
+                }
                 ${
                   c.judicialDate
                     ? `<p class="form-hint">Pasado a judicial el ${formatDate(
@@ -279,7 +294,7 @@ export class FacturacionAragView {
                         <polyline points="22,6 12,13 2,6"/>
                       </svg>
                       <span>Envío a<br>${
-                        cfg.arag_billing_email ||
+                        cfg.arag_email ||
                         "facturacionsiniestros@arag.es"
                       }</span>
                     </div>
@@ -733,6 +748,72 @@ export class FacturacionAragView {
         const amount = parseFloat(this.config[districtKey]) || 0;
         document.getElementById("suplido-amount").textContent =
           this.formatCurrency(amount);
+      });
+
+    // Estado Procesal change - transition to judicial
+    document
+      .getElementById("estado-procesal")
+      ?.addEventListener("change", async (e) => {
+        const newState = e.target.value;
+
+        // Only handle transition to JUDICIAL (can't go back to ABIERTO)
+        if (newState === "JUDICIAL" && this.caseData.state === "ABIERTO") {
+          // Ask for judicial date and district
+          const judicialDate = prompt(
+            "Fecha de paso a judicial (YYYY-MM-DD):",
+            new Date().toISOString().split("T")[0]
+          );
+
+          if (!judicialDate) {
+            // User cancelled - revert select
+            e.target.value = this.caseData.state;
+            return;
+          }
+
+          const districtSelect = document.getElementById("suplido-district");
+          let district = districtSelect?.value;
+
+          if (!district) {
+            district = prompt(
+              "Partido judicial:",
+              "Vélez-Málaga"
+            );
+          } else {
+            // Map select value to proper district name
+            const districtMap = {
+              "torrox": "Torrox",
+              "velez-malaga": "Vélez-Málaga",
+              "torremolinos": "Torremolinos",
+              "fuengirola": "Fuengirola",
+              "marbella": "Marbella",
+              "estepona": "Estepona",
+              "antequera": "Antequera",
+            };
+            district = districtMap[district] || district;
+          }
+
+          if (!district) {
+            // User cancelled - revert select
+            e.target.value = this.caseData.state;
+            return;
+          }
+
+          try {
+            showToast("Cambiando estado a judicial...", "info");
+            await api.transitionToJudicial(this.caseId, judicialDate, district);
+            showToast("Estado cambiado a Judicial", "success");
+            // Refresh to show updated state
+            await this.render();
+          } catch (error) {
+            showToast(`Error: ${error.message}`, "error");
+            // Revert select on error
+            e.target.value = this.caseData.state;
+          }
+        } else if (newState === "ABIERTO" && this.caseData.state === "JUDICIAL") {
+          // Can't go back from JUDICIAL to ABIERTO
+          showToast("No se puede volver de Judicial a Abierto", "error");
+          e.target.value = this.caseData.state;
+        }
       });
 
     // Archive case

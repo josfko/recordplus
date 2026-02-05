@@ -1374,6 +1374,62 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 0.6;
 }
 
+/* Status Select Dropdown */
+.select-wrapper-status {
+  position: relative;
+}
+
+.select-wrapper-status .form-select-status {
+  width: 100%;
+  padding: 13px;
+  padding-right: 32px;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.select-wrapper-status.select-wrapper-green .form-select-status {
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.select-wrapper-status.select-wrapper-yellow .form-select-status {
+  background: rgba(234, 179, 8, 0.05);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  color: #eab308;
+}
+
+.select-wrapper-status.select-wrapper-gray .form-select-status {
+  background: rgba(82, 82, 91, 0.1);
+  border: 1px solid rgba(82, 82, 91, 0.2);
+  color: #a1a1aa;
+}
+
+.select-wrapper-status svg {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.select-wrapper-status.select-wrapper-green svg {
+  color: #10b981;
+}
+
+.select-wrapper-status.select-wrapper-yellow svg {
+  color: #eab308;
+}
+
+.select-wrapper-status.select-wrapper-gray svg {
+  color: #a1a1aa;
+}
+
 /* Divider */
 .divider {
   height: 1px;
