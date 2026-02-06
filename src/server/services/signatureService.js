@@ -410,8 +410,8 @@ class VisualSignatureStrategy extends SignatureStrategy {
 class CryptoSignatureStrategy extends SignatureStrategy {
   constructor(certificatePath, certificatePassword) {
     super();
-    this.certificatePath = certificatePath;
-    this.certificatePassword = certificatePassword;
+    this.certificatePath = certificatePath?.trim() || "";
+    this.certificatePassword = certificatePassword || "";
   }
 
   /**
