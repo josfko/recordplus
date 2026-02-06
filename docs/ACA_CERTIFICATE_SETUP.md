@@ -118,15 +118,80 @@ The signing service is at: `src/server/services/signatureService.js`
 
 **Custom ACA Signer:** `AcaP12Signer` class in signatureService.js handles ACA's non-standard P12 format by trying multiple extraction approaches for certificate bags.
 
+## Bug Fix: Adobe "Signature is invalid" (2026-02-06)
+
+### The Problem
+
+After enabling cryptographic signing, Adobe Reader showed:
+- "Signature is invalid"
+- "There are errors in the formatting or information contained in this signature"
+
+But when we inspected the signed PDF, the cryptography was actually correct:
+- The SHA-256 hash of the PDF content matched the hash inside the signature
+- The RSA signature over that hash was mathematically valid
+
+So why did Adobe reject it?
+
+### The Cause (simple explanation)
+
+Think of it like a letter of recommendation:
+
+- Your `.p12` certificate is like a letter saying "Sonia Camara Gamero is a lawyer"
+- That letter is **signed by ACA 1** (an intermediate authority)
+- ACA 1's authority comes from **ACA ROOT 2** (the top authority)
+
+When Record+ signed a PDF, it was like attaching Sonia's letter but **not including ACA 1's letter**. Adobe opened the PDF and saw:
+
+> "OK, Sonia signed this. She says ACA 1 vouches for her... but where's ACA 1's certificate? I can't verify the chain."
+
+The PKCS#7 signature inside the PDF only contained **one certificate** (Sonia's personal cert). It was missing the **intermediate CA certificate** (ACA 1) that connects Sonia's cert to the trusted root.
+
+### The Fix
+
+**File changed:** `src/server/services/signatureService.js`
+
+**What we did:**
+
+1. The signing code now **automatically loads all `.cer` files** from the same directory as the `.p12` file (`/home/appuser/data/certificates/`)
+
+2. These CA certificates (ACA 1, ACA 2, ACA ROOT 2) get **embedded inside the PKCS#7 signature** in the PDF
+
+3. Increased the signature placeholder from 4KB to 16KB to fit the extra certificates
+
+**Before:** PDF signature contained: `[Sonia's cert]`
+**After:** PDF signature contains: `[Sonia's cert] + [ACA 1] + [ACA 2] + [ACA ROOT 2]`
+
+Now when Adobe opens the PDF, it can build the full trust chain without needing to fetch anything externally.
+
+### Important: What the PDF recipient still needs
+
+Even with the full chain embedded, Adobe Reader on the recipient's machine needs to **trust the root certificate** (ACA ROOT 2). There are two ways:
+
+1. **Automatic (recommended):** Adobe Reader > Preferences > Trust Manager > check "Load trusted certificates from an Adobe EUTL server" > click "Update Now". ACA is on the EU Trusted List so this should work.
+
+2. **Manual:** Download `ACA_ROOTCA.CER` from abogacia.es and import it into Adobe's trusted certificates.
+
+### VPS File Layout After Fix
+
+```
+/home/appuser/data/certificates/
+├── aca-23-07-25.p12      ← personal cert (used by Record+ to sign)
+├── ACA_ROOTCA.CER        ← root CA (auto-loaded into PKCS#7)
+├── ACA_SUB1CA.cer        ← intermediate ACA 1 (auto-loaded into PKCS#7)
+└── ACA_SUB2CA.cer        ← intermediate ACA 2 (auto-loaded into PKCS#7)
+```
+
+The signing code reads ALL `.cer` files from this directory automatically. If you ever need to update certificates, just replace the files here and restart PM2.
+
 ## TODO - Next Steps
 
 ### Immediate (to get crypto signing working on production)
-1. [ ] Confirm .p12 file location on VPS (SSH in and find it)
-2. [ ] Upload root + intermediate certs to VPS (for chain completeness)
-3. [ ] Set `certificate_path` in production config to VPS path of .p12
-4. [ ] Set `certificate_password` in production config
-5. [ ] Generate a test minuta from recordplus.work
-6. [ ] Download the signed PDF and verify in Adobe Reader
+1. [x] Confirm .p12 file location on VPS → `/home/appuser/data/certificates/aca-23-07-25.p12`
+2. [x] Upload root + intermediate certs to VPS → `/home/appuser/data/certificates/`
+3. [x] Set `certificate_path` in production config (via recordplus.work > Configuración)
+4. [x] Set `certificate_password` in production config
+5. [x] Fix: embed CA chain in PKCS#7 signature (commit a508e8c)
+6. [ ] Generate a test minuta from recordplus.work and verify in Adobe Reader
 
 ### For PDF Recipients (ARAG)
 ARAG employees viewing signed PDFs need ACA root certificates trusted on their machines. Options:

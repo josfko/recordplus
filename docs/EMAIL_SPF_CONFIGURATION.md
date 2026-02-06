@@ -148,3 +148,16 @@ From: abogados@camaraygamero.org
 ---
 
 *Document created during Record+ Facturación ARAG testing - 2026-02-04*
+
+100% sure - it does NOT affect basenet.                                                                                                    
+                                         
+  SPF include: statements are additive. Think of it like an "allowed list":                                                                  
+                                                                                                                                             
+  Before:                                                                                                                                    
+  v=spf1 include:_spf.basenet.nl -all                       
+  → Only basenet can send ✅
+
+  After:
+  v=spf1 include:_spf.basenet.nl include:_spf.perfora.net -a
+  
+  

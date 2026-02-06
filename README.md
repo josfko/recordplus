@@ -59,6 +59,7 @@ open http://localhost:3000
 **Usuario**: `appuser`  
 **App**: `/home/appuser/recordplus`  
 **Data**: `/home/appuser/data/legal-cases.db`  
+**Certificates**: `/home/appuser/data/certificates`
 **Backups**: `/home/appuser/backups/` (diario 3 AM)
 
 ### Comandos útiles (en el servidor)
