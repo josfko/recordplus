@@ -13,7 +13,8 @@
  *
  * @see SIGNATURE_UPGRADE.md for detailed upgrade instructions
  */
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
+import { dirname, join, extname } from "path";
 import { PDFDocument, rgb } from "pdf-lib";
 import signpdfModule from "@signpdf/signpdf";
 // Handle ESM/CJS interop - the package exports a SignPdf instance as default
@@ -42,6 +43,7 @@ class AcaP12Signer extends Signer {
     super();
     this.p12Buffer = p12Buffer;
     this.passphrase = options.passphrase || "";
+    this.caCertBuffers = options.caCertBuffers || [];
   }
 
   /**
@@ -150,9 +152,27 @@ class AcaP12Signer extends Signer {
     const p7 = forge.pkcs7.createSignedData();
     p7.content = forge.util.createBuffer(pdfBuffer.toString("binary"));
 
-    // Add all certificates to the signature
+    // Add all certificates from P12 to the signature
     for (const cert of certificates) {
       p7.addCertificate(cert);
+    }
+
+    // Add CA chain certificates (intermediates) for full chain validation
+    for (const caBuf of this.caCertBuffers) {
+      try {
+        const caStr = caBuf.toString("binary");
+        // Try DER format first, then PEM
+        let caCert;
+        try {
+          const caAsn1 = forge.asn1.fromDer(forge.util.createBuffer(caStr));
+          caCert = forge.pki.certificateFromAsn1(caAsn1);
+        } catch {
+          caCert = forge.pki.certificateFromPem(caBuf.toString("utf8"));
+        }
+        p7.addCertificate(caCert);
+      } catch {
+        // Skip unreadable CA certificates
+      }
     }
 
     // Add signer with SHA-256
@@ -396,19 +416,37 @@ class CryptoSignatureStrategy extends SignatureStrategy {
     // ═══════════════════════════════════════════════════════════════════════════
 
     // Add signature placeholder with certificate metadata
+    // signatureLength must be large enough for PKCS#7 + all CA chain certs
     pdflibAddPlaceholder({
       pdfDoc,
       reason: "Factura ARAG - Firma Digital ACA",
       contactInfo: certInfo.cn || "Abogado",
       name: certInfo.cn || "Firmante",
       location: "Málaga, España",
+      signatureLength: 16384,
     });
+
+    // Load CA chain certificates from the same directory as the P12
+    const caCertBuffers = [];
+    try {
+      const certDir = dirname(this.certificatePath);
+      const files = readdirSync(certDir);
+      for (const file of files) {
+        const ext = extname(file).toLowerCase();
+        if (ext === ".cer" || ext === ".crt" || ext === ".pem") {
+          caCertBuffers.push(readFileSync(join(certDir, file)));
+        }
+      }
+    } catch {
+      // If directory read fails, continue without CA certs
+    }
 
     // Create signer with P12 certificate using ACA-compatible signer
     let signer;
     try {
       signer = new AcaP12Signer(certBuffer, {
         passphrase: this.certificatePassword,
+        caCertBuffers,
       });
     } catch (err) {
       if (
