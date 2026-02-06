@@ -297,13 +297,15 @@ export class CaseDetailView {
         </div>
       </div>
     `;
-    modal.style.cssText =
-      "position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;";
     document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add("modal-visible"));
 
     modal
       .querySelector("#modal-cancel")
-      .addEventListener("click", () => modal.remove());
+      .addEventListener("click", () => {
+        modal.classList.remove("modal-visible");
+        setTimeout(() => modal.remove(), 200);
+      });
     modal
       .querySelector("#modal-confirm")
       .addEventListener("click", async () => {
@@ -338,13 +340,15 @@ export class CaseDetailView {
         </div>
       </div>
     `;
-    modal.style.cssText =
-      "position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;";
     document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add("modal-visible"));
 
     modal
       .querySelector("#modal-cancel")
-      .addEventListener("click", () => modal.remove());
+      .addEventListener("click", () => {
+        modal.classList.remove("modal-visible");
+        setTimeout(() => modal.remove(), 200);
+      });
     modal
       .querySelector("#modal-confirm")
       .addEventListener("click", async () => {
