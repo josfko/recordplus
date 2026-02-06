@@ -1138,7 +1138,7 @@ body {
 /* Facturación Content Layout */
 .facturacion-content {
   display: grid;
-  grid-template-columns: 222px 1fr 222px;
+  grid-template-columns: 222px minmax(auto, 500px) 1fr;
   gap: var(--spacing-6);
 }
 
@@ -1157,6 +1157,11 @@ body {
 .facturacion-history {
   display: flex;
   flex-direction: column;
+}
+
+.facturacion-history .card,
+.particulares-history .card {
+  overflow: visible;
 }
 
 /* Card Styles */
@@ -1960,7 +1965,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 /* Particulares Content Layout */
 .particulares-content {
   display: grid;
-  grid-template-columns: 222px 1fr 222px;
+  grid-template-columns: 222px minmax(auto, 500px) 1fr;
   gap: var(--spacing-6);
 }
 
@@ -3497,6 +3502,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-size: var(--text-sm);
   color: #d4d4d8;
   line-height: 1.35;
+  overflow-wrap: break-word;
 }
 
 .timeline-title-muted {
@@ -4390,12 +4396,14 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-size: var(--text-xs);
   color: var(--text-muted);
   font-family: var(--font-mono);
+  overflow-wrap: break-word;
 }
 
 .timeline-email-subject {
   font-size: var(--text-xs);
   color: var(--text-dimmed);
   padding-left: 16px;
+  overflow-wrap: break-word;
 }
 
 .timeline-email-error {
