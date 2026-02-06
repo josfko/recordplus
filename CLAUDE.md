@@ -18,6 +18,54 @@ Before writing any code:
 3. Then implement the code
 4. Run verification and iterate until it passes
 
+### Deployment Checklist
+**CRITICAL: Always follow this sequence before asking the user to pull on VPS:**
+1. Commit changes locally (on Mac)
+2. Push to remote (`git push`)
+3. **Only then** tell the user to run `git pull && pm2 restart recordplus` on VPS
+4. Never suggest `git pull` on VPS without first confirming the commit was pushed
+
+## Environment Context
+
+**CRITICAL: Always confirm which environment (local Mac vs VPS) before running commands or suggesting fixes.**
+
+### Two Environments
+
+| | Local Mac (development) | VPS (production) |
+|---|---|---|
+| **Purpose** | Code editing, testing, git | Running app, serving users |
+| **Domain** | localhost:3000 | recordplus.work |
+| **API URL** | /api (same-origin) | api.recordplus.work (Cloudflare Tunnel) |
+| **App path** | /Users/jo/node-javascript-projects/record+ | /home/appuser/recordplus/ |
+| **Data path** | ./data/ | /home/appuser/data/ (SEPARATE from app) |
+| **Database** | ./data/legal-cases.db | /home/appuser/data/legal-cases.db |
+| **Documents** | ./data/documents/ | /home/appuser/data/documents/ |
+| **Certificates** | N/A | /home/appuser/data/certificates/ |
+| **Node.js** | Local install | 20.x (NodeSource) |
+
+### VPS Details
+- **Provider:** Clouding.io (Barcelona, Spain)
+- **IP:** 217.71.207.83
+- **OS:** Ubuntu 22.04 LTS
+- **User:** `appuser` (non-root, runs the app)
+- **PM2 process name:** `recordplus` (NOT `record-plus` or `record+`)
+- **Cloudflare Tunnel:** `cloudflared` systemd service
+
+### What Runs Where
+- **PDF signing, certificates, OpenSSL** → VPS only (certificates are on VPS)
+- **SMTP email sending** → VPS only
+- **Frontend development** → Local Mac
+- **Backend development** → Local Mac (deploy to VPS via git pull)
+- **Database queries on production data** → VPS only
+- **Running tests** → Local Mac
+
+### Rules
+1. When giving terminal commands, ALWAYS specify "Run on VPS" or "Run on local Mac"
+2. NEVER search for certificates on the local Mac — they live on the VPS at `/home/appuser/data/certificates/`
+3. The production domain is `recordplus.work` (NOT `api.recordplus.work` for the site — that's the API tunnel)
+4. The data directory `/home/appuser/data/` is SEPARATE from the app directory `/home/appuser/recordplus/`
+5. NEVER deploy without explicit user permission
+
 ## Testing Guidelines
 
 ### Email Testing
@@ -420,6 +468,32 @@ Use **fast-check** for property-based testing. Required properties:
 8. Configuration value validation
 9. Export/import round-trip
 
+## Browser Automation Testing
+
+### Setup
+- Uses **Claude-in-Chrome MCP** for browser automation
+- Production URL: `https://recordplus.work`
+- Before any browser test session, verify the MCP connection:
+  1. Call `tabs_context_mcp` to get available tabs
+  2. Navigate to `recordplus.work` and take a screenshot
+  3. If either fails, stop and fix the connection before proceeding
+
+### Guidelines
+- Always take a screenshot before and after key actions to verify state
+- Use `read_page` with `filter: "interactive"` to find clickable elements
+- Use `find` for natural language element searches (e.g., "Nuevo Expediente button")
+- Wait 2-3 seconds after navigation or form submissions for page to settle
+- Record GIFs for multi-step test flows using `gif_creator`
+
+### Test Flows
+When running browser tests, follow this pattern:
+1. Screenshot initial state
+2. Perform action (click, type, navigate)
+3. Wait for response
+4. Screenshot result state
+5. Verify expected outcome (element visible, text changed, etc.)
+6. Report pass/fail with screenshots as evidence
+
 ## Development Guidelines
 
 ### Code Style
@@ -479,7 +553,7 @@ statistics-reporting (monthly reports, Excel/PDF export)
 ## Important Notes
 
 - All dates in ISO format (`YYYY-MM-DD`)
-- UI language is Spanish
+- UI language is Spanish — NEVER replace accented characters (á, é, í, ó, ú, ñ) with ASCII equivalents
 - Code comments and variable names in English
 - Never delete cases - only archive them
 - Admin panel is SELECT-only (no write queries)
