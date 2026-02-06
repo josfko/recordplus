@@ -178,12 +178,8 @@ export class CaseDetailView {
       // ARAG specific actions
       if (c.type === "ARAG") {
         buttons += `<a href="#/invoicing/${c.id}" class="btn btn-secondary btn-action-billing">Facturación</a>`;
-        buttons += `<button class="btn btn-secondary btn-action-document" id="btn-minuta">Generar Minuta</button>`;
         if (c.state === "ABIERTO") {
           buttons += `<button class="btn btn-secondary btn-action-transition" id="btn-judicial">Pasar a Judicial</button>`;
-        }
-        if (c.state === "JUDICIAL") {
-          buttons += `<button class="btn btn-secondary btn-action-document" id="btn-suplido">Generar Suplido</button>`;
         }
       }
 
@@ -227,16 +223,6 @@ export class CaseDetailView {
     this.container
       .querySelector("#btn-archive")
       ?.addEventListener("click", () => this.showArchiveModal());
-    this.container
-      .querySelector("#btn-minuta")
-      ?.addEventListener("click", () =>
-        showToast("Generación de minutas próximamente", "info")
-      );
-    this.container
-      .querySelector("#btn-suplido")
-      ?.addEventListener("click", () =>
-        showToast("Generación de suplidos próximamente", "info")
-      );
   }
 
   showJudicialModal() {

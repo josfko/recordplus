@@ -141,7 +141,7 @@ export class FacturacionAragView {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M18 6L6 18M6 6l12 12"/>
                 </svg>
-                Cerrar Expediente
+                Archivar
               </button>
             </div>
           </div>
@@ -213,7 +213,7 @@ export class FacturacionAragView {
                   <line x1="12" y1="9" x2="12" y2="13"/>
                   <line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
-                <h3 class="card-section-title card-section-title-danger">Cierre de Expediente</h3>
+                <h3 class="card-section-title card-section-title-danger">Archivar Expediente</h3>
               </div>
               <p class="card-description-danger">
                 Requerido para archivar. El estado pasará a "Archivado" permanentemente.
