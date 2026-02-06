@@ -20,7 +20,7 @@ export class CaseDetailView {
       this.caseData = await api.getCase(this.caseId);
       try {
         const history = await api.getCaseHistory(this.caseId);
-        this.documents = history?.documents || [];
+        this.documents = history?.data?.documents || [];
       } catch {
         this.documents = [];
       }
