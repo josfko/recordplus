@@ -14,7 +14,11 @@
  * @see SIGNATURE_UPGRADE.md for detailed upgrade instructions
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
+import { writeFile, readFile, mkdtemp, rm } from "fs/promises";
 import { dirname, join, extname } from "path";
+import { tmpdir } from "os";
+import { execFile as execFileCb } from "child_process";
+import { promisify } from "util";
 import { PDFDocument, rgb } from "pdf-lib";
 import signpdfModule from "@signpdf/signpdf";
 // Handle ESM/CJS interop - the package exports a SignPdf instance as default
@@ -22,6 +26,9 @@ const signpdf = signpdfModule.default || signpdfModule;
 import { Signer } from "@signpdf/utils";
 import { pdflibAddPlaceholder } from "@signpdf/placeholder-pdf-lib";
 import forge from "node-forge";
+import * as asn1js from "asn1js";
+
+const execFile = promisify(execFileCb);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CUSTOM ACA P12 SIGNER
@@ -148,60 +155,148 @@ class AcaP12Signer extends Signer {
       );
     }
 
-    // Create PKCS#7 signed data
-    const p7 = forge.pkcs7.createSignedData();
-    p7.content = forge.util.createBuffer(pdfBuffer.toString("binary"));
+    // Convert extracted key and certificates to PEM for OpenSSL
+    const keyPem = forge.pki.privateKeyToPem(privateKey);
+    const certPem = forge.pki.certificateToPem(signingCert);
 
-    // Add all certificates from P12 to the signature
-    for (const cert of certificates) {
-      p7.addCertificate(cert);
-    }
-
-    // Add CA chain certificates (intermediates) for full chain validation
+    // Build CA chain PEM from caCertBuffers (DER or PEM .cer/.crt files)
+    let chainPem = "";
     for (const caBuf of this.caCertBuffers) {
-      try {
-        const caStr = caBuf.toString("binary");
-        // Try DER format first, then PEM
-        let caCert;
-        try {
-          const caAsn1 = forge.asn1.fromDer(forge.util.createBuffer(caStr));
-          caCert = forge.pki.certificateFromAsn1(caAsn1);
-        } catch {
-          caCert = forge.pki.certificateFromPem(caBuf.toString("utf8"));
-        }
-        p7.addCertificate(caCert);
-      } catch {
-        // Skip unreadable CA certificates
+      const str = caBuf.toString("utf8").trim();
+      if (str.startsWith("-----BEGIN")) {
+        chainPem += str + "\n";
+      } else {
+        // DER → PEM conversion
+        chainPem +=
+          "-----BEGIN CERTIFICATE-----\n" +
+          caBuf.toString("base64").match(/.{1,64}/g).join("\n") +
+          "\n-----END CERTIFICATE-----\n";
       }
     }
 
-    // Add signer with SHA-256
-    p7.addSigner({
-      key: privateKey,
-      certificate: signingCert,
-      digestAlgorithm: forge.pki.oids.sha256,
-      authenticatedAttributes: [
-        {
-          type: forge.pki.oids.contentType,
-          value: forge.pki.oids.data,
-        },
-        {
-          type: forge.pki.oids.signingTime,
-          value: signingTime || new Date(),
-        },
-        {
-          type: forge.pki.oids.messageDigest,
-          // value will be auto-populated at signing time
-        },
-      ],
-    });
+    // Also include P12-embedded certificates (other than the signing cert)
+    for (const cert of certificates) {
+      if (cert !== signingCert) {
+        chainPem += forge.pki.certificateToPem(cert) + "\n";
+      }
+    }
 
-    // Sign in detached mode
-    p7.sign({ detached: true });
+    // Write temp files and call OpenSSL
+    const tmpDir = await mkdtemp(join(tmpdir(), "pdf-sign-"));
+    try {
+      const keyPath = join(tmpDir, "key.pem");
+      const certPath = join(tmpDir, "cert.pem");
+      const chainPath = join(tmpDir, "chain.pem");
+      const dataPath = join(tmpDir, "data.bin");
+      const sigPath = join(tmpDir, "sig.der");
 
-    // Return DER-encoded signature
-    const der = forge.asn1.toDer(p7.toAsn1()).getBytes();
-    return Buffer.from(der, "binary");
+      await Promise.all([
+        writeFile(keyPath, keyPem, { mode: 0o600 }),
+        writeFile(certPath, certPem),
+        writeFile(dataPath, pdfBuffer),
+        ...(chainPem.trim() ? [writeFile(chainPath, chainPem)] : []),
+      ]);
+
+      // Call OpenSSL to create CMS signature
+      const args = [
+        "cms",
+        "-sign",
+        "-binary",
+        "-nodetach",
+        "-md",
+        "sha256",
+        "-signer",
+        certPath,
+        "-inkey",
+        keyPath,
+        "-in",
+        dataPath,
+        "-outform",
+        "DER",
+        "-out",
+        sigPath,
+      ];
+
+      // Add chain certificates if available
+      if (chainPem.trim()) {
+        args.push("-certfile", chainPath);
+      }
+
+      try {
+        await execFile("openssl", args);
+      } catch (err) {
+        if (err.code === "ENOENT") {
+          throw new Error(
+            "OpenSSL no está instalado en el sistema. " +
+              "Es necesario para la firma criptográfica de documentos."
+          );
+        }
+        throw new Error(
+          `Error de OpenSSL al firmar: ${err.stderr || err.message}`
+        );
+      }
+
+      // Read the attached CMS and convert to detached
+      const attachedDer = await readFile(sigPath);
+      return AcaP12Signer.makeDetached(attachedDer);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
+  /**
+   * Convert attached CMS/PKCS#7 to detached by removing eContent.
+   *
+   * OpenSSL produces attached CMS (data embedded). PDF adbe.pkcs7.detached
+   * requires eContent absent. We parse the DER, strip the embedded content,
+   * and re-encode.
+   *
+   * @param {Buffer} attachedDer - DER-encoded attached CMS
+   * @returns {Buffer} DER-encoded detached CMS
+   */
+  static makeDetached(attachedDer) {
+    const asn1 = asn1js.fromBER(new Uint8Array(attachedDer).buffer);
+    if (asn1.offset === -1) {
+      throw new Error("Failed to parse CMS DER structure");
+    }
+
+    // ContentInfo > [0] content > SignedData
+    const contentInfo = asn1.result;
+    const signedData = contentInfo.valueBlock.value[1].valueBlock.value[0];
+
+    // Find encapContentInfo inside SignedData
+    // SignedData: version, digestAlgorithms, encapContentInfo, [0]certificates, signerInfos
+    const sdValues = signedData.valueBlock.value;
+
+    for (const item of sdValues) {
+      // encapContentInfo is a SEQUENCE containing eContentType OID
+      // and optionally [0] EXPLICIT eContent
+      if (
+        item.constructor.name === "Sequence" ||
+        (item.idBlock && item.idBlock.tagClass === 1 && item.idBlock.tagNumber === 16)
+      ) {
+        const seqValues = item.valueBlock?.value;
+        if (!seqValues || seqValues.length < 1) continue;
+
+        // Check if first element is an OID (eContentType)
+        const first = seqValues[0];
+        if (
+          first.idBlock &&
+          first.idBlock.tagClass === 1 &&
+          first.idBlock.tagNumber === 6
+        ) {
+          // This is encapContentInfo. Remove [0] eContent if present.
+          if (seqValues.length > 1) {
+            seqValues.splice(1, seqValues.length - 1);
+          }
+          break;
+        }
+      }
+    }
+
+    // Re-encode to DER
+    const derOut = asn1.result.toBER(false);
+    return Buffer.from(derOut);
   }
 }
 
@@ -720,4 +815,9 @@ export class SignatureService {
 }
 
 // Export strategies for testing
-export { SignatureStrategy, VisualSignatureStrategy, CryptoSignatureStrategy };
+export {
+  SignatureStrategy,
+  VisualSignatureStrategy,
+  CryptoSignatureStrategy,
+  AcaP12Signer,
+};

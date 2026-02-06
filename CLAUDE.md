@@ -392,12 +392,19 @@ Failed emails can be retried via:
 
 ### Digital Signature
 
-**Current Implementation:** Visual signature (text box with timestamp)
+**Implementation:** Strategy pattern with two modes:
+- **VisualSignatureStrategy**: Text box with timestamp (default, no certificate)
+- **CryptoSignatureStrategy**: PKCS#7/CMS cryptographic signature (when certificate configured)
 
-**Future:** Cryptographic signature ready via strategy pattern
-- Configure `certificate_path` and `certificate_password` in Configuration
-- System auto-switches to crypto when certificate is available
-- Requires: `@signpdf/signpdf`, `@signpdf/signer-p12` packages
+**Cryptographic signing uses OpenSSL CLI** (not node-forge for PKCS#7 generation):
+- node-forge has a [known bug (PR #731)](https://github.com/digitalbazaar/forge/pull/731) where `SET OF` elements are not DER-sorted, causing Adobe to reject signatures
+- `AcaP12Signer.sign()` extracts key/certs from P12 with node-forge, then calls `openssl cms -sign` for correct DER encoding
+- `AcaP12Signer.makeDetached()` strips embedded content from CMS using `asn1js` (PDF requires detached signatures)
+- Requires OpenSSL installed on the system (pre-installed on Ubuntu 22.04 and macOS)
+- Requires: `@signpdf/signpdf`, `@signpdf/placeholder-pdf-lib`, `asn1js` packages
+- See `docs/FIX_ADOBE_PDF_SIGNATURE.md` for full technical details
+
+**To enable:** Configure `certificate_path` and `certificate_password` in Configuration page. System auto-switches to crypto when certificate is available.
 
 ## Testing Requirements
 
