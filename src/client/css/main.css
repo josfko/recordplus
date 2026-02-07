@@ -5110,10 +5110,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   justify-content: space-between;
   align-items: center;
   gap: var(--spacing-4);
-  padding: var(--spacing-4) var(--spacing-5);
-  background: var(--bg-surface-input-alt);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
+  padding: var(--spacing-4) 0;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;

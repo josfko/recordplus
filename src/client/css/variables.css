@@ -461,10 +461,10 @@
    ================================================================ */
 [data-theme="light"] {
   /* Background Colors */
-  --bg-primary: #f8fafc;
-  --bg-body: #f1f5f9;
-  --bg-card: rgba(255, 255, 255, 0.7);
-  --bg-sidebar: rgba(255, 255, 255, 0.6);
+  --bg-primary: #ffffff;
+  --bg-body: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-sidebar: rgba(255, 255, 255, 0.75);
   --bg-input: #ffffff;
   --bg-button-secondary: #ffffff;
   --bg-button-active: #e4e4e7;
