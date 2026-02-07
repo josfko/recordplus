@@ -761,7 +761,7 @@ body {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 24px;
-  height: 500px;
+  height: 700px;
   align-items: stretch;
 }
 
@@ -1201,23 +1201,47 @@ body {
   display: grid;
   grid-template-columns: 222px minmax(auto, 500px) 1fr;
   gap: var(--spacing-6);
+  height: 700px;
+  align-items: stretch;
 }
 
 .facturacion-sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-6);
+  height: 100%;
+}
+
+.facturacion-sidebar .card:last-child {
+  flex: 1;
 }
 
 .facturacion-main {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-6);
+  height: 100%;
+}
+
+.facturacion-main > .card:last-child {
+  flex: 1;
 }
 
 .facturacion-history {
   display: flex;
   flex-direction: column;
+  height: 100%;
+}
+
+.facturacion-history > .card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.facturacion-history .timeline {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .facturacion-history .card,
@@ -2026,7 +2050,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: grid;
   grid-template-columns: 222px minmax(auto, 500px) 1fr;
   gap: var(--spacing-6);
-  height: 500px;
+  height: 700px;
   align-items: stretch;
 }
 
@@ -2035,6 +2059,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-direction: column;
   gap: var(--spacing-6);
   height: 100%;
+}
+
+.particulares-sidebar .card:last-child {
+  flex: 1;
 }
 
 .particulares-main {
@@ -3028,7 +3056,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-direction: row;
   gap: var(--spacing-6);
   align-items: stretch;
-  height: 500px;
+  height: 700px;
 }
 
 .turno-sidebar {
@@ -3038,6 +3066,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   width: 222px;
   flex-shrink: 0;
   height: 100%;
+}
+
+.turno-sidebar .glass-card:last-child {
+  flex: 1;
 }
 
 .turno-main {
