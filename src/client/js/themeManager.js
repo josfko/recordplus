@@ -46,7 +46,11 @@ class ThemeManager {
     this.userChose = true;
     const next = this.current === "dark" ? "light" : "dark";
     localStorage.setItem(STORAGE_KEY, next);
+
+    // Smooth transition
+    document.body.classList.add("theme-transitioning");
     this.apply(next);
+    setTimeout(() => document.body.classList.remove("theme-transitioning"), 350);
   }
 
   updateToggleIcon(theme) {
