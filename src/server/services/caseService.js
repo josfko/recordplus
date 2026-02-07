@@ -38,6 +38,12 @@ export const CASE_STATES = {
   ARCHIVADO: "ARCHIVADO",
 };
 
+// Valid languages
+export const CASE_LANGUAGES = {
+  ES: "es",
+  EN: "en",
+};
+
 // Valid judicial districts
 export const JUDICIAL_DISTRICTS = [
   "Torrox",
@@ -141,6 +147,14 @@ function validateCaseData(data) {
     }
   }
 
+  // Validate language if provided
+  if (data.language && !Object.values(CASE_LANGUAGES).includes(data.language)) {
+    throw new ValidationError(
+      "Idioma inválido. Debe ser 'es' o 'en'",
+      "language"
+    );
+  }
+
   // Validate entry date if provided
   if (data.entryDate) {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -206,8 +220,8 @@ export function create(data) {
         .prepare(
           `INSERT INTO cases (
             type, client_name, internal_reference, arag_reference,
-            designation, state, entry_date, observations
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            designation, state, entry_date, observations, language
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           data.type,
@@ -217,7 +231,8 @@ export function create(data) {
           data.type === CASE_TYPES.TURNO_OFICIO ? data.designation.trim() : null,
           CASE_STATES.ABIERTO,
           entryDate,
-          data.observations || ""
+          data.observations || "",
+          data.language || CASE_LANGUAGES.ES
         );
 
       // Return the created case from within the transaction
@@ -275,7 +290,7 @@ export function getById(id) {
  * @returns {Object} { cases, total, page, pageSize }
  */
 export function list(filters = {}, pagination = {}) {
-  const { type, state, search } = filters;
+  const { type, state, search, language } = filters;
   const { page = 1, pageSize = 20 } = pagination;
 
   let whereClauses = [];
@@ -289,6 +304,11 @@ export function list(filters = {}, pagination = {}) {
   if (state) {
     whereClauses.push("state = ?");
     params.push(state);
+  }
+
+  if (language) {
+    whereClauses.push("language = ?");
+    params.push(language);
   }
 
   if (search) {
@@ -362,7 +382,7 @@ export function update(id, data, expectedVersion = null) {
     throw new ConflictError(errorInfo.message, errorInfo.field, errorInfo.details);
   }
 
-  const allowedFields = ["clientName", "observations", "entryDate"];
+  const allowedFields = ["clientName", "observations", "entryDate", "language"];
   const updates = [];
   const params = [];
 
@@ -589,6 +609,8 @@ function mapRowToCase(row) {
     updatedAt: row.updated_at,
     // Version for optimistic locking (defaults to 1 if column doesn't exist yet)
     version: row.version ?? 1,
+    // Language (defaults to 'es' if column doesn't exist yet)
+    language: row.language ?? "es",
   };
 }
 
@@ -603,6 +625,7 @@ export default {
   deleteCase,
   CASE_TYPES,
   CASE_STATES,
+  CASE_LANGUAGES,
   JUDICIAL_DISTRICTS,
   ValidationError,
   ConflictError,

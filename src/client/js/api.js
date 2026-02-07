@@ -353,6 +353,7 @@ class ApiClient {
     if (filters.type) params.set("type", filters.type);
     if (filters.state) params.set("state", filters.state);
     if (filters.search) params.set("search", filters.search);
+    if (filters.language) params.set("language", filters.language);
     params.set("page", page.toString());
     params.set("pageSize", pageSize.toString());
 

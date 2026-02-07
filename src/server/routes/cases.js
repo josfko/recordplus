@@ -14,6 +14,7 @@ import {
   NotFoundError,
   CASE_TYPES,
   CASE_STATES,
+  CASE_LANGUAGES,
 } from "../services/caseService.js";
 import {
   ValidationError as AppValidationError,
@@ -30,7 +31,7 @@ const router = Router();
  */
 router.get("/", (req, res, next) => {
   try {
-    const { type, state, search, page, pageSize } = req.query;
+    const { type, state, search, language, page, pageSize } = req.query;
 
     // Validate type filter if provided
     if (type && !Object.values(CASE_TYPES).includes(type)) {
@@ -58,10 +59,24 @@ router.get("/", (req, res, next) => {
       });
     }
 
+    // Validate language filter if provided
+    if (language && !Object.values(CASE_LANGUAGES).includes(language)) {
+      return res.status(400).json({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: `Idioma inválido. Debe ser uno de: ${Object.values(
+            CASE_LANGUAGES
+          ).join(", ")}`,
+          field: "language",
+        },
+      });
+    }
+
     const filters = {};
     if (type) filters.type = type;
     if (state) filters.state = state;
     if (search) filters.search = search;
+    if (language) filters.language = language;
 
     const pagination = {
       page: page ? parseInt(page, 10) : 1,

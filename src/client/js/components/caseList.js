@@ -17,6 +17,7 @@ export class CaseListView {
     this.filters = {
       type: null,
       state: null,
+      language: null,
       search: "",
     };
   }
@@ -69,6 +70,17 @@ export class CaseListView {
           <button class="filter-tab ${
             this.filters.type === "TURNO_OFICIO" ? "active" : ""
           }" data-filter="TURNO_OFICIO">Turno Oficio</button>
+        </div>
+        <div class="filter-tabs" style="margin-left: 12px;">
+          <button class="filter-tab lang-tab ${
+            !this.filters.language ? "active" : ""
+          }" data-lang="">Idioma</button>
+          <button class="filter-tab lang-tab ${
+            this.filters.language === "es" ? "active" : ""
+          }" data-lang="es">ES</button>
+          <button class="filter-tab lang-tab ${
+            this.filters.language === "en" ? "active" : ""
+          }" data-lang="en">EN</button>
         </div>
         <div class="search-input">
           <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -154,7 +166,11 @@ export class CaseListView {
           }">${c.internalReference || "-"}</span></td>
           <td>
             <div class="cell-client">
-              <span class="cell-client-name">${c.clientName}</span>
+              <span class="cell-client-name">${c.clientName}${
+            c.language === "en"
+              ? ' <span style="display: inline-block; font-size: 9px; font-weight: 600; color: #60a5fa; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.2); padding: 1px 5px; border-radius: 4px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.5px;">EN</span>'
+              : ""
+          }</span>
               ${secondaryInfo}
             </div>
           </td>
@@ -181,10 +197,19 @@ export class CaseListView {
   }
 
   bindEvents() {
-    // Filter tabs
-    this.container.querySelectorAll(".filter-tab").forEach((tab) => {
+    // Type filter tabs
+    this.container.querySelectorAll(".filter-tab:not(.lang-tab)").forEach((tab) => {
       tab.addEventListener("click", async (e) => {
         this.filters.type = e.target.dataset.filter || null;
+        this.page = 1;
+        await this.refresh();
+      });
+    });
+
+    // Language filter tabs
+    this.container.querySelectorAll(".lang-tab").forEach((tab) => {
+      tab.addEventListener("click", async (e) => {
+        this.filters.language = e.target.dataset.lang || null;
         this.page = 1;
         await this.refresh();
       });
@@ -251,10 +276,16 @@ export class CaseListView {
       ".table-info"
     ).textContent = `Mostrando ${this.cases.length} de ${this.total} expedientes`;
 
-    // Update filter tabs
-    this.container.querySelectorAll(".filter-tab").forEach((tab) => {
+    // Update type filter tabs
+    this.container.querySelectorAll(".filter-tab:not(.lang-tab)").forEach((tab) => {
       const filter = tab.dataset.filter || null;
       tab.classList.toggle("active", filter === this.filters.type);
+    });
+
+    // Update language filter tabs
+    this.container.querySelectorAll(".lang-tab").forEach((tab) => {
+      const lang = tab.dataset.lang || null;
+      tab.classList.toggle("active", lang === this.filters.language);
     });
 
     // Update pagination

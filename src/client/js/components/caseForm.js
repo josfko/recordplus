@@ -109,12 +109,22 @@ export class CaseFormView {
           </div>
 
           <!-- Entry Date -->
-          <div style="margin-bottom: 24px;">
+          <div style="margin-bottom: 20px;">
             <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Fecha de Entrada</label>
             <input type="date" name="entryDate" id="entry-date" value="${
               c.entryDate || today
             }"
               style="width: 200px; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
+          </div>
+
+          <!-- Language -->
+          <div style="margin-bottom: 24px;">
+            <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Idioma del Cliente</label>
+            <select name="language" id="case-language"
+              style="width: 200px; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; cursor: pointer;">
+              <option value="es" ${(c.language || "es") === "es" ? "selected" : ""}>Espa\u00f1ol</option>
+              <option value="en" ${c.language === "en" ? "selected" : ""}>English</option>
+            </select>
           </div>
 
           <!-- Actions -->
@@ -186,6 +196,7 @@ export class CaseFormView {
         .querySelector("#client-name")
         .value.trim();
       const entryDate = this.container.querySelector("#entry-date").value;
+      const language = this.container.querySelector("#case-language").value;
 
       // Validation
       if (!clientName) {
@@ -193,7 +204,7 @@ export class CaseFormView {
         return;
       }
 
-      const data = { type, clientName, entryDate };
+      const data = { type, clientName, entryDate, language };
 
       if (type === "ARAG") {
         const aragReference = aragInput.value.trim();
