@@ -11,7 +11,7 @@ export class TurnoListView {
     this.container = container;
     this.cases = [];
     this.allCases = [];
-    this.currentFilter = "active"; // 'active', 'ABIERTO', 'JUDICIAL', 'ARCHIVADO', 'all'
+    this.currentFilter = "ABIERTO"; // 'ABIERTO', 'JUDICIAL', 'ARCHIVADO', 'all'
     this.searchQuery = "";
   }
 
@@ -37,9 +37,7 @@ export class TurnoListView {
     let filtered = [...this.allCases];
 
     // Apply state filter
-    if (this.currentFilter === "active") {
-      filtered = filtered.filter((c) => c.state !== "ARCHIVADO");
-    } else if (this.currentFilter !== "all") {
+    if (this.currentFilter !== "all") {
       filtered = filtered.filter((c) => c.state === this.currentFilter);
     }
 
@@ -63,7 +61,6 @@ export class TurnoListView {
     const archivedCases = this.cases.filter((c) => c.state === "ARCHIVADO");
 
     // Counts for filter badges
-    const allActive = this.allCases.filter((c) => c.state !== "ARCHIVADO").length;
     const allOpen = this.allCases.filter((c) => c.state === "ABIERTO").length;
     const allFinalized = this.allCases.filter((c) => c.state === "JUDICIAL").length;
     const allArchived = this.allCases.filter((c) => c.state === "ARCHIVADO").length;
@@ -88,10 +85,6 @@ export class TurnoListView {
         <!-- Filters and Search -->
         <div class="list-controls">
           <div class="filter-tabs">
-            <button class="filter-tab ${this.currentFilter === "active" ? "active" : ""}" data-filter="active">
-              Activos
-              <span class="filter-count">${allActive}</span>
-            </button>
             <button class="filter-tab ${this.currentFilter === "ABIERTO" ? "active" : ""}" data-filter="ABIERTO">
               Abiertos
               <span class="filter-count">${allOpen}</span>
@@ -137,7 +130,7 @@ export class TurnoListView {
             <p class="results-count">${this.cases.length} resultado${this.cases.length !== 1 ? "s" : ""} encontrado${this.cases.length !== 1 ? "s" : ""}</p>
           ` : ""}
 
-          ${openCases.length > 0 && (this.currentFilter === "active" || this.currentFilter === "ABIERTO" || this.currentFilter === "all") ? `
+          ${openCases.length > 0 && (this.currentFilter === "ABIERTO" || this.currentFilter === "all") ? `
             <div class="case-section">
               <div class="section-header">
                 <div class="section-title">
@@ -153,7 +146,7 @@ export class TurnoListView {
             </div>
           ` : ""}
 
-          ${finalizedCases.length > 0 && (this.currentFilter === "active" || this.currentFilter === "JUDICIAL" || this.currentFilter === "all") ? `
+          ${finalizedCases.length > 0 && (this.currentFilter === "JUDICIAL" || this.currentFilter === "all") ? `
             <div class="case-section">
               <div class="section-header">
                 <div class="section-title">
@@ -212,7 +205,6 @@ export class TurnoListView {
 
   getFilterLabel() {
     const labels = {
-      active: "activos",
       ABIERTO: "abiertos",
       JUDICIAL: "finalizados",
       ARCHIVADO: "archivados",
