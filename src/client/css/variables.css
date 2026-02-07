@@ -158,4 +158,298 @@
   --scrollbar-track-bg: transparent;
   --scrollbar-thumb-bg: rgba(255, 255, 255, 0.1);
   --scrollbar-thumb-hover-bg: rgba(255, 255, 255, 0.2);
+
+  /* ==================== Extended Semantic Variables ==================== */
+  /* These map hardcoded colors to named variables for theme switching */
+
+  /* Surface Overlays */
+  --bg-card-glass: rgba(20, 20, 23, 0.7);
+  --bg-surface-subtle: rgba(255, 255, 255, 0.03);
+  --bg-surface-muted: rgba(255, 255, 255, 0.05);
+  --bg-surface-raised: rgba(255, 255, 255, 0.06);
+  --bg-surface-elevated: rgba(24, 24, 27, 0.3);
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+  --bg-overlay-subtle: rgba(0, 0, 0, 0.2);
+  --bg-overlay-card: rgba(9, 9, 11, 0.3);
+  --bg-tooltip: #18181b;
+
+  /* Interactive surfaces */
+  --bg-hover-subtle: rgba(255, 255, 255, 0.02);
+  --bg-hover-muted: rgba(255, 255, 255, 0.04);
+
+  /* Border Spectrum (extending existing) */
+  --border-muted: rgba(255, 255, 255, 0.04);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-bold: rgba(255, 255, 255, 0.15);
+  --border-interactive: rgba(255, 255, 255, 0.25);
+
+  /* Text Extensions */
+  --text-on-dark: #d4d4d8;
+  --text-on-color: #000000;
+
+  /* Neutral Gray Palette */
+  --color-zinc-700: #3f3f46;
+  --color-zinc-600: #52525b;
+  --color-zinc-500: #71717a;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-900: #18181b;
+  --color-zinc-800: #27272a;
+  --color-gray-400: #9ca3af;
+
+  /* Accent: Green */
+  --color-green-600: #059669;
+  --color-green-500: #10b981;
+  --color-green-400: #34d399;
+  --color-green-300: #4ade80;
+  --color-green-200: #86efac;
+  --color-green-700: #047857;
+  --accent-green-bg: rgba(34, 197, 94, 0.1);
+  --accent-green-bg-hover: rgba(34, 197, 94, 0.2);
+  --accent-green-bg-subtle: rgba(16, 185, 129, 0.05);
+  --accent-green-bg-muted: rgba(16, 185, 129, 0.1);
+  --accent-green-bg-strong: rgba(16, 185, 129, 0.15);
+  --accent-green-bg-vivid: rgba(16, 185, 129, 0.2);
+  --accent-green-border: rgba(34, 197, 94, 0.25);
+  --accent-green-border-hover: rgba(34, 197, 94, 0.4);
+  --accent-green-border-muted: rgba(16, 185, 129, 0.2);
+  --accent-green-border-strong: rgba(16, 185, 129, 0.3);
+  --accent-green-border-bold: rgba(16, 185, 129, 0.4);
+  --accent-green-border-vivid: rgba(16, 185, 129, 0.5);
+  --accent-green-text: #22c55e;
+  --accent-green-text-light: #4ade80;
+  --accent-green-glow: 0 0 8px rgba(16, 185, 129, 0.5);
+  --accent-green-shadow: 0px 10px 15px -3px rgba(16, 185, 129, 0.2), 0px 4px 6px -4px rgba(16, 185, 129, 0.2);
+  --accent-green-shadow-subtle: 0px 10px 15px -3px rgba(16, 185, 129, 0.05), 0px 4px 6px -4px rgba(16, 185, 129, 0.05);
+  --accent-green-subtitle: rgba(52, 211, 153, 0.8);
+
+  /* Accent: Blue */
+  --color-blue-500: #3b82f6;
+  --color-blue-400: #60a5fa;
+  --color-blue-300: #93c5fd;
+  --color-blue-200: #bfdbfe;
+  --accent-blue-bg: rgba(59, 130, 246, 0.1);
+  --accent-blue-bg-hover: rgba(59, 130, 246, 0.2);
+  --accent-blue-bg-strong: rgba(59, 130, 246, 0.15);
+  --accent-blue-bg-vivid: rgba(59, 130, 246, 0.25);
+  --accent-blue-border: rgba(59, 130, 246, 0.25);
+  --accent-blue-border-hover: rgba(59, 130, 246, 0.4);
+  --accent-blue-border-muted: rgba(59, 130, 246, 0.2);
+  --accent-blue-border-strong: rgba(59, 130, 246, 0.3);
+  --accent-blue-border-bold: rgba(59, 130, 246, 0.5);
+  --accent-blue-shadow: 0px 10px 15px -3px rgba(59, 130, 246, 0.1), 0px 4px 6px -4px rgba(59, 130, 246, 0.1);
+  --accent-blue-glow: 0 0 8px rgba(59, 130, 246, 0.5);
+  --accent-blue-text-glow: 0 0 8px rgba(96, 165, 250, 0.3);
+  --accent-blue-bg-glow: rgba(96, 165, 250, 0.12);
+
+  /* Accent: Indigo */
+  --color-indigo-600: #4f46e5;
+  --color-indigo-500: #6366f1;
+  --color-indigo-400: #818cf8;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-700: #4338ca;
+  --accent-indigo-bg: rgba(99, 102, 241, 0.1);
+  --accent-indigo-bg-subtle: rgba(99, 102, 241, 0.05);
+  --accent-indigo-bg-strong: rgba(99, 102, 241, 0.15);
+  --accent-indigo-bg-vivid: rgba(99, 102, 241, 0.2);
+  --accent-indigo-bg-bold: rgba(99, 102, 241, 0.25);
+  --accent-indigo-border: rgba(99, 102, 241, 0.25);
+  --accent-indigo-border-strong: rgba(99, 102, 241, 0.3);
+  --accent-indigo-border-bold: rgba(99, 102, 241, 0.5);
+  --accent-indigo-shadow: 0px 10px 15px -3px rgba(99, 102, 241, 0.2), 0px 4px 6px -4px rgba(99, 102, 241, 0.2);
+  --accent-indigo-shadow-subtle: 0px 10px 15px -3px rgba(99, 102, 241, 0.1), 0px 4px 6px -4px rgba(99, 102, 241, 0.1);
+  --accent-indigo-glow: 0 0 8px rgba(99, 102, 241, 0.5);
+  --accent-indigo-glow-bg: rgba(99, 102, 241, 0.1);
+  --filter-tab-active-bg: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+  --filter-tab-active-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1), 0 2px 8px -2px rgba(99, 102, 241, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --accent-indigo-loading-bg: rgba(99, 102, 241, 0.1);
+  --accent-indigo-loading-border: rgba(99, 102, 241, 0.3);
+
+  /* Accent: Red/Danger */
+  --color-red-500: #ef4444;
+  --color-red-400: #f87171;
+  --color-red-300: #fca5a5;
+  --color-red-200: rgba(254, 202, 202, 0.6);
+  --accent-red-bg: rgba(239, 68, 68, 0.1);
+  --accent-red-bg-subtle: rgba(239, 68, 68, 0.05);
+  --accent-red-bg-hover: rgba(239, 68, 68, 0.15);
+  --accent-red-bg-vivid: rgba(239, 68, 68, 0.2);
+  --accent-red-border: rgba(239, 68, 68, 0.2);
+  --accent-red-border-muted: rgba(239, 68, 68, 0.1);
+  --accent-red-border-strong: rgba(239, 68, 68, 0.25);
+  --accent-red-border-bold: rgba(239, 68, 68, 0.3);
+  --accent-red-border-vivid: rgba(239, 68, 68, 0.4);
+  --accent-red-border-hover: rgba(239, 68, 68, 0.5);
+  --accent-red-glow: 0 0 8px rgba(248, 113, 113, 0.5);
+  --toast-error-border: rgba(248, 113, 113, 0.2);
+  --retry-btn-border: rgba(248, 113, 113, 0.3);
+  --retry-btn-border-hover: rgba(248, 113, 113, 0.5);
+  --retry-btn-bg-hover: rgba(248, 113, 113, 0.1);
+  --form-label-danger-color: rgba(248, 113, 113, 0.5);
+
+  /* Accent: Rose/Pink */
+  --color-rose-400: #fb7185;
+  --accent-rose-bg: rgba(244, 63, 94, 0.1);
+  --accent-rose-border: rgba(244, 63, 94, 0.1);
+  --accent-pink-glow-bg: rgba(236, 72, 153, 0.1);
+
+  /* Accent: Amber/Yellow */
+  --color-amber-600: #d97706;
+  --color-amber-500: #f59e0b;
+  --color-amber-400: #fbbf24;
+  --color-amber-300: #fcd34d;
+  --color-amber-200: #fde047;
+  --color-amber-100: #fef08a;
+  --color-amber-50: #fefce8;
+  --color-amber: #f59e0b;
+  --color-yellow-500: #eab308;
+  --color-yellow-400: #facc15;
+  --color-yellow-100: #fef9c3;
+  --accent-amber-bg: rgba(245, 158, 11, 0.1);
+  --accent-amber-bg-subtle: rgba(245, 158, 11, 0.05);
+  --accent-amber-bg-hover: rgba(245, 158, 11, 0.15);
+  --accent-amber-bg-vivid: rgba(245, 158, 11, 0.2);
+  --accent-amber-border: rgba(245, 158, 11, 0.2);
+  --accent-amber-border-muted: rgba(245, 158, 11, 0.1);
+  --accent-amber-border-strong: rgba(245, 158, 11, 0.3);
+  --accent-amber-border-bold: rgba(245, 158, 11, 0.4);
+  --accent-amber-border-vivid: rgba(245, 158, 11, 0.5);
+  --accent-amber-glow: 0 0 8px rgba(234, 179, 8, 0.5);
+  --accent-amber-glow-strong: 0 0 8px rgba(245, 158, 11, 0.5);
+  --accent-amber-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  --accent-yellow-glow: 0 0 8px rgba(234, 179, 8, 0.5);
+  --accent-yellow-bg: rgba(234, 179, 8, 0.1);
+  --accent-yellow-bg-subtle: rgba(234, 179, 8, 0.05);
+  --accent-yellow-border: rgba(234, 179, 8, 0.2);
+  --accent-amber-btn-bg: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --accent-amber-btn-bg-hover: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  --accent-amber-btn-border: rgba(251, 191, 36, 0.3);
+  --accent-amber-btn-border-hover: rgba(251, 191, 36, 0.5);
+  --accent-amber-btn-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --designation-required-color: rgba(251, 191, 36, 0.6);
+  --tab-count-bg: rgba(245, 158, 11, 0.15);
+  --turno-info-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(180, 83, 9, 0.04) 100%);
+  --turno-info-border: rgba(245, 158, 11, 0.15);
+  --upload-progress-bg: rgba(245, 158, 11, 0.05);
+  --amber-text-glow: 0 0 8px rgba(251, 191, 36, 0.35);
+  --amber-text-glow-strong: 0 0 10px rgba(251, 191, 36, 0.4);
+  --status-amber-bg: rgba(251, 191, 36, 0.12);
+  --status-amber-text-glow: 0 0 8px rgba(251, 191, 36, 0.3);
+
+  /* Accent: Cyan */
+  --accent-cyan-glow-bg: rgba(6, 182, 212, 0.1);
+
+  /* Accent: Orange */
+  --color-orange-400: #fb923c;
+  --accent-orange-glow-bg: rgba(249, 115, 22, 0.1);
+
+  /* Accent: Gray (status/pending) */
+  --accent-gray-bg: rgba(82, 82, 91, 0.1);
+  --accent-gray-border: rgba(82, 82, 91, 0.2);
+  --accent-gray-border-muted: rgba(161, 161, 170, 0.2);
+  --accent-gray-border-strong: rgba(161, 161, 170, 0.3);
+  --accent-gray-bg-subtle: rgba(161, 161, 170, 0.05);
+  --accent-gray-bg-muted: rgba(161, 161, 170, 0.1);
+
+  /* Filter Tab: Green variant */
+  --filter-tab-green-active-bg: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.1) 100%);
+  --filter-tab-green-active-border: rgba(34, 197, 94, 0.3);
+  --filter-tab-green-active-shadow: 0 0 0 1px rgba(34, 197, 94, 0.1), 0 2px 8px -2px rgba(34, 197, 94, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --filter-tab-green-hover-bg: rgba(34, 197, 94, 0.08);
+
+  /* Button Extensions */
+  --btn-secondary-surface: rgba(255, 255, 255, 0.05);
+  --btn-secondary-border: rgba(255, 255, 255, 0.12);
+  --btn-secondary-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --btn-secondary-hover-bg: rgba(255, 255, 255, 0.1);
+  --btn-secondary-hover-border: rgba(255, 255, 255, 0.2);
+  --btn-outline-border: rgba(255, 255, 255, 0.1);
+
+  /* Glass Card */
+  --glass-card-bg: rgba(20, 20, 23, 0.7);
+  --glass-card-border: rgba(255, 255, 255, 0.08);
+  --glass-card-shadow: 0px 4px 30px 0px rgba(0, 0, 0, 0.1);
+
+  /* Utilities */
+  --divider-color: rgba(255, 255, 255, 0.05);
+  --divider-gradient: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0));
+  --timeline-dot-shadow: 0px 0px 0px 4px #151518;
+  --timeline-dot-outline-bg: #151518;
+  --calendar-icon-filter: invert(1);
+  --checkbox-bg: white;
+  --checkbox-border: #767676;
+  --checkbox-check-color: #000;
+  --btn-white-bg: white;
+  --btn-white-color: black;
+  --btn-white-hover-bg: #f4f4f5;
+  --progress-bar-bg: rgba(255, 255, 255, 0.1);
+  --stats-bar-bg: rgba(255, 255, 255, 0.05);
+  --stats-bar-hover-bg: rgba(255, 255, 255, 0.1);
+  --stats-bar-current-bg: #6366f1;
+  --stats-bar-current-shadow: 0 0 20px rgba(79, 70, 229, 0.3);
+  --stats-bar-current-hover: #818cf8;
+  --stats-bar-tooltip-bg: #18181b;
+  --stats-bar-tooltip-border: rgba(255, 255, 255, 0.1);
+  --stats-bar-tooltip-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  --stats-export-btn-bg: var(--text-primary);
+  --stats-export-btn-color: #000;
+  --stats-export-btn-hover: #e4e4e7;
+  --stats-export-btn-shadow: 0 10px 15px -3px rgba(255, 255, 255, 0.05);
+  --stats-date-picker-bg: rgba(255, 255, 255, 0.05);
+  --stats-date-picker-border: rgba(255, 255, 255, 0.1);
+  --stats-date-picker-hover: rgba(255, 255, 255, 0.08);
+  --stats-tab-active-bg: rgba(255, 255, 255, 0.1);
+  --stats-tab-active-border: rgba(255, 255, 255, 0.05);
+  --stats-kpi-card-bg: rgba(20, 20, 23, 0.6);
+  --stats-kpi-card-border: rgba(255, 255, 255, 0.08);
+  --pending-bar-bg: #fb923c;
+  --toast-info-border: rgba(99, 102, 241, 0.2);
+  --toast-warning-border: rgba(245, 158, 11, 0.2);
+  --modal-border: rgba(255, 255, 255, 0.1);
+  --modal-header-border: rgba(255, 255, 255, 0.08);
+  --modal-footer-bg: rgba(0, 0, 0, 0.2);
+  --modal-close-hover-bg: rgba(255, 255, 255, 0.1);
+  --file-drop-hover-bg: rgba(245, 158, 11, 0.05);
+  --file-drop-drag-bg: rgba(245, 158, 11, 0.1);
+  --file-drop-has-file-border: rgba(16, 185, 129, 0.5);
+  --file-drop-has-file-bg: rgba(16, 185, 129, 0.05);
+  --file-drop-bg: rgba(255, 255, 255, 0.02);
+
+  /* Additional color palette */
+  --color-indigo-200: #c7d2fe;
+  --color-red-600: #dc2626;
+  --color-red-800: #b91c1c;
+
+  /* Additional surface/border */
+  --bg-surface-input-alt: rgba(24, 24, 27, 0.4);
+  --border-interactive-hover: rgba(255, 255, 255, 0.2);
+  --border-disabled-text: rgba(255, 255, 255, 0.4);
+  --text-disabled: rgba(255, 255, 255, 0.6);
+  --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.3);
+
+  /* Additional accent: Amber/Yellow */
+  --accent-amber-border-mid: rgba(245, 158, 11, 0.25);
+  --accent-yellow-border-strong: rgba(234, 179, 8, 0.3);
+  --accent-amber-glow-subtle: 0 0 6px rgba(245, 158, 11, 0.15);
+  --filter-tab-amber-active-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(234, 179, 8, 0.08) 100%);
+  --filter-tab-amber-active-border: rgba(245, 158, 11, 0.4);
+  --filter-tab-amber-active-shadow: 0 0 0 1px rgba(245, 158, 11, 0.1), 0 2px 8px -2px rgba(245, 158, 11, 0.2);
+  --filter-count-active-bg: rgba(245, 158, 11, 0.25);
+  --search-focus-ring: rgba(245, 158, 11, 0.1);
+
+  /* Additional accent: Green */
+  --accent-green-bg-hover-alt: rgba(34, 197, 94, 0.15);
+
+  /* Additional accent: Indigo */
+  --accent-indigo-bg-glow: rgba(129, 140, 248, 0.12);
+  --accent-indigo-text-glow: 0 0 8px rgba(129, 140, 248, 0.3);
+  --accent-indigo-glow-strong: 0 0 8px rgba(129, 140, 248, 0.5);
+
+  /* Additional accent: Gray */
+  --accent-gray-border-subtle: rgba(161, 161, 170, 0.15);
+
+  /* Additional accent: Red */
+  --accent-red-bg-disabled: rgba(239, 68, 68, 0.4);
 }
