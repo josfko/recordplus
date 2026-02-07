@@ -756,6 +756,48 @@ body {
   color: var(--text-dimmed);
 }
 
+/* Case Detail Layout (ARAG) */
+.case-detail-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  height: 500px;
+  align-items: stretch;
+}
+
+.case-detail-main {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.case-detail-main textarea {
+  flex: 1;
+  min-height: 120px;
+}
+
+.case-detail-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.case-detail-docs {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.case-detail-docs h3 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary-alt);
+  margin-bottom: 12px;
+}
+
 /* Type Badges */
 .badge {
   display: inline-flex;
@@ -1984,23 +2026,50 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: grid;
   grid-template-columns: 222px minmax(auto, 500px) 1fr;
   gap: var(--spacing-6);
+  height: 500px;
+  align-items: stretch;
 }
 
 .particulares-sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-6);
+  height: 100%;
 }
 
 .particulares-main {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-6);
+  height: 100%;
+}
+
+.particulares-main > .card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.particulares-main .hoja-encargo-content {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .particulares-history {
   display: flex;
   flex-direction: column;
+  height: 100%;
+}
+
+.particulares-history > .card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.particulares-history .timeline {
+  flex: 1;
+  overflow-y: auto;
 }
 
 /* Input Display (readonly style) */
@@ -2958,7 +3027,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   flex-direction: row;
   gap: var(--spacing-6);
-  align-items: flex-start;
+  align-items: stretch;
+  height: 500px;
 }
 
 .turno-sidebar {
@@ -2967,6 +3037,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   gap: var(--spacing-6);
   width: 222px;
   flex-shrink: 0;
+  height: 100%;
 }
 
 .turno-main {
@@ -2975,6 +3046,18 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   gap: var(--spacing-6);
   flex: 1;
   min-width: 0;
+  height: 100%;
+}
+
+.turno-main .documents-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.turno-main .documents-card .tab-content {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .turno-timeline {
@@ -2982,6 +3065,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-direction: column;
   width: 222px;
   flex-shrink: 0;
+  height: 100%;
+}
+
+.turno-timeline .glass-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Glass Card - Glassmorphism Style */
@@ -5110,7 +5200,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   justify-content: space-between;
   align-items: center;
   gap: var(--spacing-4);
-  padding: var(--spacing-4) 0;
+  padding: var(--spacing-3) 0;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
@@ -5134,7 +5224,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   gap: var(--spacing-2);
   padding: var(--spacing-2) var(--spacing-3);
   background: transparent;
-  border: 1px solid var(--border-default);
+  border: none;
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: var(--text-sm);

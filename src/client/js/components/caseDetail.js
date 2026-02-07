@@ -83,9 +83,9 @@ export class CaseDetailView {
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+      <div class="case-detail-content">
         <!-- Main Info -->
-        <div class="data-table-container" style="padding: 24px;">
+        <div class="data-table-container case-detail-main">
           <h3 style="font-size: 14px; font-weight: 500; color: var(--text-primary-alt); margin-bottom: 16px;">Información del Expediente</h3>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -160,9 +160,9 @@ export class CaseDetailView {
         </div>
 
         <!-- Sidebar -->
-        <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="case-detail-sidebar">
           <!-- Documents -->
-          <div class="data-table-container" style="padding: 16px;">
+          <div class="data-table-container case-detail-docs">
             <h3 style="font-size: 12px; font-weight: 500; color: var(--text-primary-alt); margin-bottom: 12px;">Documentos</h3>
             ${this.renderDocuments()}
           </div>

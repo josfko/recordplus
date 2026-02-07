@@ -113,7 +113,7 @@ export class ConfigurationView {
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Seguridad</label>
               <select name="smtp_secure" id="smtp-secure"
-                style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
+                style="width: 100%; padding: 10px 36px 10px 12px; background: var(--bg-input) url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2371717a%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22m6 9 6 6 6-6%22/%3E%3C/svg%3E') no-repeat right 12px center; border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; appearance: none; -webkit-appearance: none;">
                 <option value="false" ${c.smtp_secure !== "true" ? "selected" : ""}>STARTTLS (587)</option>
                 <option value="true" ${c.smtp_secure === "true" ? "selected" : ""}>SSL/TLS (465)</option>
               </select>

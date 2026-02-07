@@ -85,6 +85,10 @@ export class TurnoListView {
         <!-- Filters and Search -->
         <div class="list-controls">
           <div class="filter-tabs">
+            <button class="filter-tab ${this.currentFilter === "all" ? "active" : ""}" data-filter="all">
+              Todos
+              <span class="filter-count">${this.allCases.length}</span>
+            </button>
             <button class="filter-tab ${this.currentFilter === "ABIERTO" ? "active" : ""}" data-filter="ABIERTO">
               Abiertos
               <span class="filter-count">${allOpen}</span>
@@ -96,10 +100,6 @@ export class TurnoListView {
             <button class="filter-tab ${this.currentFilter === "ARCHIVADO" ? "active" : ""}" data-filter="ARCHIVADO">
               Archivados
               <span class="filter-count">${allArchived}</span>
-            </button>
-            <button class="filter-tab ${this.currentFilter === "all" ? "active" : ""}" data-filter="all">
-              Todos
-              <span class="filter-count">${this.allCases.length}</span>
             </button>
           </div>
           <div class="search-box">
