@@ -183,17 +183,15 @@ export class CaseDetailView {
         const filename = doc.file_path
           ? doc.file_path.split("/").pop()
           : `${docType.toLowerCase()}.pdf`;
-        const badgeColor = isMinuta
-          ? "color: #818cf8; background: rgba(99, 102, 241, 0.1);"
-          : "color: #d4d4d8; background: rgba(63, 63, 70, 0.3);";
+        const badgeClass = isMinuta ? "doc-badge-minuta" : "doc-badge-default";
 
-        return `<div class="doc-item-clickable" data-doc-id="${doc.id}" style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
-          <span style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; ${badgeColor}">${docType}</span>
+        return `<div class="doc-item-clickable" data-doc-id="${doc.id}" style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; cursor: pointer; transition: background 0.15s;">
+          <span class="${badgeClass}" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">${docType}</span>
           <div style="flex: 1; min-width: 0;">
             <p style="font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${filename}</p>
             <p style="font-size: 10px; color: var(--text-dimmed); margin-top: 2px;">${formatDate(doc.created_at)}</p>
           </div>
-          ${doc.signed ? '<span style="font-size: 10px; font-weight: 500; color: #22c55e; padding: 2px 6px; border-radius: 4px; background: rgba(34, 197, 94, 0.1);">Firmado</span>' : ""}
+          ${doc.signed ? '<span class="doc-badge-signed">Firmado</span>' : ""}
         </div>`;
       }).join("")}
     </div>`;

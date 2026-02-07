@@ -801,7 +801,7 @@ export class ParticularesView {
           </div>
 
           ${!latestDoc.signed ? `
-            <div class="form-hint" style="color: #f59e0b; margin-top: var(--spacing-3);">
+            <div class="form-hint text-warning" style="margin-top: var(--spacing-3);">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: middle; margin-right: 4px;">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                 <line x1="12" y1="9" x2="12" y2="13"/>
@@ -814,7 +814,7 @@ export class ParticularesView {
 
         <div class="modal-footer">
           <button class="btn btn-secondary" id="email-modal-cancel">Cancelar</button>
-          <button class="btn btn-primary" id="email-modal-send" style="background: #059669; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+          <button class="btn btn-primary btn-send" id="email-modal-send">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 2L11 13"/>
               <path d="M22 2l-7 20-4-9-9-4 20-7z"/>

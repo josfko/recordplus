@@ -319,30 +319,31 @@ export class ConfigurationView {
         const result = await api.testEmail(smtpConfig);
 
         if (result.success) {
-          statusDiv.querySelector("div").style.background =
-            "rgba(34, 197, 94, 0.1)";
+          statusDiv.querySelector("div").className = "status-bg-success";
+          statusDiv.querySelector("div").style.background = "";
+          statusDiv.querySelector("div").classList.add("status-bg-success");
           statusIcon.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="status-text-success">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           `;
           statusText.textContent = "Conexión SMTP exitosa";
-          statusText.style.color = "#22c55e";
+          statusText.className = "status-text status-text-success";
         } else {
           throw new Error(result.error || "Error de conexión");
         }
       } catch (error) {
-        statusDiv.querySelector("div").style.background =
-          "rgba(239, 68, 68, 0.1)";
+        statusDiv.querySelector("div").style.background = "";
+        statusDiv.querySelector("div").className = "status-bg-error";
         statusIcon.innerHTML = `
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="status-text-error">
             <circle cx="12" cy="12" r="10"/>
             <line x1="15" y1="9" x2="9" y2="15"/>
             <line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
         `;
         statusText.textContent = `Error: ${error.message}`;
-        statusText.style.color = "#ef4444";
+        statusText.className = "status-text status-text-error";
       }
     });
 
@@ -359,16 +360,17 @@ export class ConfigurationView {
 
       if (!certPath) {
         statusDiv.style.display = "block";
-        statusDiv.querySelector("div").style.background = "rgba(239, 68, 68, 0.1)";
+        statusDiv.querySelector("div").style.background = "";
+        statusDiv.querySelector("div").className = "status-bg-error";
         statusIcon.innerHTML = `
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="status-text-error">
             <circle cx="12" cy="12" r="10"/>
             <line x1="15" y1="9" x2="9" y2="15"/>
             <line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
         `;
         statusText.textContent = "Introduzca la ruta del certificado";
-        statusText.style.color = "#ef4444";
+        statusText.className = "status-text status-text-error";
         certDetails.style.display = "none";
         return;
       }
@@ -390,12 +392,13 @@ export class ConfigurationView {
 
         if (result.valid) {
           const isExpiringSoon = result.daysUntilExpiration <= 30;
-          const bgColor = isExpiringSoon ? "rgba(234, 179, 8, 0.1)" : "rgba(34, 197, 94, 0.1)";
-          const iconColor = isExpiringSoon ? "#eab308" : "#22c55e";
+          const bgClass = isExpiringSoon ? "status-bg-warning" : "status-bg-success";
+          const textClass = isExpiringSoon ? "status-text-warning" : "status-text-success";
 
-          statusDiv.querySelector("div").style.background = bgColor;
+          statusDiv.querySelector("div").style.background = "";
+          statusDiv.querySelector("div").className = bgClass;
           statusIcon.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="${textClass}">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               <polyline points="9 12 11 14 15 10"/>
             </svg>
@@ -403,10 +406,10 @@ export class ConfigurationView {
 
           if (isExpiringSoon) {
             statusText.textContent = `Certificado válido (caduca en ${result.daysUntilExpiration} días)`;
-            statusText.style.color = "#eab308";
+            statusText.className = "status-text status-text-warning";
           } else {
             statusText.textContent = "Certificado válido";
-            statusText.style.color = "#22c55e";
+            statusText.className = "status-text status-text-success";
           }
 
           // Format dates
@@ -424,7 +427,7 @@ export class ConfigurationView {
               <span style="color: var(--text-dimmed);">Válido desde:</span>
               <span>${validFrom}</span>
               <span style="color: var(--text-dimmed);">Válido hasta:</span>
-              <span style="${result.isExpired ? "color: #ef4444;" : ""}">${validTo}</span>
+              <span class="${result.isExpired ? "status-text-expired" : ""}">${validTo}</span>
             </div>
           `;
           certDetails.style.display = "block";
@@ -432,16 +435,17 @@ export class ConfigurationView {
           throw new Error(result.error || "Certificado inválido");
         }
       } catch (error) {
-        statusDiv.querySelector("div").style.background = "rgba(239, 68, 68, 0.1)";
+        statusDiv.querySelector("div").style.background = "";
+        statusDiv.querySelector("div").className = "status-bg-error";
         statusIcon.innerHTML = `
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="status-text-error">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
         `;
         statusText.textContent = error.message || "Error al verificar el certificado";
-        statusText.style.color = "#ef4444";
+        statusText.className = "status-text status-text-error";
         certDetails.style.display = "none";
       }
     });

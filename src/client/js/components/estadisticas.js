@@ -45,9 +45,9 @@ export class EstadisticasView {
         { month: "O", value: 5200, label: "Oct: 5.200€", current: true },
       ],
       distribution: [
-        { name: "ARAG", percent: 62, amount: 26567, color: "#eab308" },
-        { name: "Particulares", percent: 28, amount: 11998, color: "#6366f1" },
-        { name: "Turno Oficio", percent: 10, amount: 4285, color: "#71717a" },
+        { name: "ARAG", percent: 62, amount: 26567, color: "var(--color-yellow-500)" },
+        { name: "Particulares", percent: 28, amount: 11998, color: "var(--color-indigo-500)" },
+        { name: "Turno Oficio", percent: 10, amount: 4285, color: "var(--color-zinc-500)" },
       ],
       procedures: [
         {

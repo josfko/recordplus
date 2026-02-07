@@ -5855,3 +5855,74 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   color: var(--text-dimmed);
   margin-bottom: 16px;
 }
+
+/* ==================== Theme-aware utility classes (Phase 3) ==================== */
+
+/* Document badge variants */
+.doc-badge-minuta {
+  color: var(--color-indigo-400);
+  background: var(--accent-indigo-bg);
+}
+
+.doc-badge-default {
+  color: var(--color-zinc-300);
+  background: var(--accent-gray-bg);
+}
+
+.doc-badge-signed {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent-green-text);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-green-bg);
+}
+
+/* Document list item hover */
+.doc-item-clickable:hover {
+  background: var(--bg-hover-muted);
+}
+
+/* Status indicator classes for configuration */
+.status-bg-success {
+  background: var(--accent-green-bg);
+}
+
+.status-bg-error {
+  background: var(--accent-red-bg);
+}
+
+.status-bg-warning {
+  background: var(--accent-yellow-bg);
+}
+
+.status-text-success {
+  color: var(--accent-green-text);
+}
+
+.status-text-error {
+  color: var(--color-red-500);
+}
+
+.status-text-warning {
+  color: var(--color-yellow-500);
+}
+
+.status-text-expired {
+  color: var(--color-red-500);
+}
+
+/* Send button (green variant) */
+.btn-send {
+  background: var(--color-green-600);
+  box-shadow: var(--accent-green-shadow);
+}
+
+.btn-send:hover {
+  background: var(--color-green-700);
+}
+
+/* Warning hint text */
+.text-warning {
+  color: var(--color-amber-500);
+}
