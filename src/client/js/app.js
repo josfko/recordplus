@@ -18,6 +18,7 @@ import { ParticularesListView } from "./components/particularesList.js";
 import { TurnoOficioView } from "./components/turnoOficio.js";
 import { TurnoListView } from "./components/turnoList.js";
 import { EstadisticasView } from "./components/estadisticas.js";
+import { themeManager } from "./themeManager.js";
 
 // Toast notification helper
 export function showToast(message, type = "info") {
@@ -69,6 +70,12 @@ function initApp() {
     return;
   }
   window.__recordPlusInitialized = true;
+
+  // Initialize theme
+  themeManager.init();
+  document
+    .getElementById("theme-toggle")
+    ?.addEventListener("click", () => themeManager.toggle());
 
   // Initialize router
   router.init(mainContent);
