@@ -138,7 +138,7 @@ body {
   font-family: var(--font-sans);
   font-weight: var(--font-semibold);
   font-size: var(--text-base);
-  color: var(--text-primary);
+  color: #ffffff;
   letter-spacing: var(--tracking-tight);
 }
 
@@ -321,7 +321,7 @@ body {
 
 .btn-primary {
   background: var(--btn-primary-bg);
-  color: var(--text-primary);
+  color: #ffffff;
   box-shadow: var(--btn-primary-shadow);
   height: 36px;
   padding: 0 var(--spacing-4) 0 var(--spacing-3);
@@ -3564,7 +3564,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .btn-amber {
   background: var(--accent-amber-btn-bg);
   border: 1px solid var(--accent-amber-btn-border);
-  color: var(--text-primary);
+  color: #ffffff;
   text-shadow: var(--accent-amber-btn-text-shadow);
 }
 
