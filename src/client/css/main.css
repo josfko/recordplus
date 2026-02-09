@@ -1268,7 +1268,7 @@ body {
 
 .facturacion-history .card,
 .particulares-history .card {
-  overflow: visible;
+  overflow: hidden;
 }
 
 /* Card Styles */
@@ -3142,6 +3142,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   flex-direction: column;
   width: 100%;
+  overflow: hidden;
 }
 
 .turno-timeline .timeline-content {
