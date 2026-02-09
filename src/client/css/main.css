@@ -1242,6 +1242,28 @@ body {
 .facturacion-history .timeline {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
+}
+
+.facturacion-history .timeline::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+}
+
+.facturacion-history .timeline::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-bg);
+  border-radius: 9999px;
+}
+
+.facturacion-history .timeline::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-bg);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.facturacion-history .timeline::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover-bg);
 }
 
 .facturacion-history .card,
@@ -2098,6 +2120,28 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .particulares-history .timeline {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
+}
+
+.particulares-history .timeline::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+}
+
+.particulares-history .timeline::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-bg);
+  border-radius: 9999px;
+}
+
+.particulares-history .timeline::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-bg);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.particulares-history .timeline::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover-bg);
 }
 
 /* Input Display (readonly style) */
@@ -3098,6 +3142,33 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   flex-direction: column;
   width: 100%;
+}
+
+.turno-timeline .timeline-content {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
+}
+
+.turno-timeline .timeline-content::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+}
+
+.turno-timeline .timeline-content::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-bg);
+  border-radius: 9999px;
+}
+
+.turno-timeline .timeline-content::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-bg);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.turno-timeline .timeline-content::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover-bg);
 }
 
 /* Glass Card - Glassmorphism Style */

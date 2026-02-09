@@ -154,10 +154,10 @@
   --max-search-width: 400px;
 
   /* Scrollbar Styling */
-  --scrollbar-width: 6px;
-  --scrollbar-track-bg: transparent;
-  --scrollbar-thumb-bg: rgba(255, 255, 255, 0.1);
-  --scrollbar-thumb-hover-bg: rgba(255, 255, 255, 0.2);
+  --scrollbar-width: 5px;
+  --scrollbar-track-bg: rgba(255, 255, 255, 0.04);
+  --scrollbar-thumb-bg: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover-bg: rgba(255, 255, 255, 0.35);
 
   /* ==================== Extended Semantic Variables ==================== */
   /* These map hardcoded colors to named variables for theme switching */
@@ -540,8 +540,9 @@
   --shadow-notification: 0px 0px 0px 2px #f8fafc;
 
   /* Scrollbar */
-  --scrollbar-thumb-bg: rgba(0, 0, 0, 0.12);
-  --scrollbar-thumb-hover-bg: rgba(0, 0, 0, 0.2);
+  --scrollbar-track-bg: rgba(0, 0, 0, 0.03);
+  --scrollbar-thumb-bg: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb-hover-bg: rgba(0, 0, 0, 0.32);
 
   /* Surface Overlays */
   --bg-card-glass: rgba(255, 255, 255, 0.8);
