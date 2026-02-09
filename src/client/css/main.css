@@ -1230,13 +1230,15 @@ body {
 .facturacion-history {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .facturacion-history > .card {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .facturacion-history .timeline {
@@ -2108,13 +2110,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .particulares-history {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .particulares-history > .card {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .particulares-history .timeline {
@@ -3134,7 +3138,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .turno-timeline {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .turno-timeline .glass-card {
@@ -3142,6 +3147,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   flex-direction: column;
   width: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
