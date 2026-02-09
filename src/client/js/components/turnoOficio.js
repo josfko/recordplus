@@ -260,7 +260,7 @@ export class TurnoOficioView {
           <div class="turno-timeline">
             <div class="glass-card">
               <div class="timeline-header">
-                <h3 class="card-section-title">Flujo del Expediente</h3>
+                <h3 class="card-section-title">Historial</h3>
               </div>
               <div class="timeline-content">
                 ${this.renderTimeline()}
