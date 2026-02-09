@@ -1245,8 +1245,6 @@ body {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
 }
 
 .facturacion-history .timeline::-webkit-scrollbar {
@@ -2125,8 +2123,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
 }
 
 .particulares-history .timeline::-webkit-scrollbar {
@@ -3155,8 +3151,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
 }
 
 .turno-timeline .timeline-content::-webkit-scrollbar {
