@@ -251,15 +251,26 @@ export function getById(id) {
   return mapRowToCase(row);
 }
 
+// Allowlist of sortable columns (keys = API param, values = SQL column)
+const SORTABLE_COLUMNS = {
+  internal_reference: 'internal_reference',
+  client_name: 'client_name',
+  type: 'type',
+  state: 'state',
+  entry_date: 'entry_date',
+};
+
 /**
- * List cases with filters and pagination
+ * List cases with filters, pagination, and sorting
  * @param {Object} filters - Filter options
  * @param {Object} pagination - Pagination options
+ * @param {Object} sort - Sort options { sortBy, sortOrder }
  * @returns {Object} { cases, total, page, pageSize }
  */
-export function list(filters = {}, pagination = {}) {
+export function list(filters = {}, pagination = {}, sort = {}) {
   const { type, state, search, language } = filters;
   const { page = 1, pageSize = 20 } = pagination;
+  const { sortBy = null, sortOrder = 'DESC' } = sort;
 
   let whereClauses = [];
   let params = [];
@@ -290,6 +301,16 @@ export function list(filters = {}, pagination = {}) {
   const whereClause =
     whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
+  // Build ORDER BY clause (allowlist prevents SQL injection)
+  let orderByClause;
+  if (sortBy && SORTABLE_COLUMNS[sortBy]) {
+    const column = SORTABLE_COLUMNS[sortBy];
+    const direction = sortOrder === 'ASC' ? 'ASC' : 'DESC';
+    orderByClause = `ORDER BY ${column} ${direction}, id ${direction}`;
+  } else {
+    orderByClause = 'ORDER BY entry_date DESC, id DESC';
+  }
+
   // Get total count
   const countResult = queryOne(
     `SELECT COUNT(*) as total FROM cases ${whereClause}`,
@@ -300,7 +321,7 @@ export function list(filters = {}, pagination = {}) {
   // Get paginated results
   const offset = (page - 1) * pageSize;
   const rows = query(
-    `SELECT * FROM cases ${whereClause} ORDER BY entry_date DESC, id DESC LIMIT ? OFFSET ?`,
+    `SELECT * FROM cases ${whereClause} ${orderByClause} LIMIT ? OFFSET ?`,
     [...params, pageSize, offset]
   );
 
@@ -311,6 +332,8 @@ export function list(filters = {}, pagination = {}) {
     pageSize,
   };
 }
+
+export { SORTABLE_COLUMNS };
 
 /**
  * Update a case with optimistic locking support

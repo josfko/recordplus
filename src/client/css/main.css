@@ -705,6 +705,53 @@ body {
   text-align: right;
 }
 
+.data-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 28px;
+  transition: color 0.15s ease;
+}
+
+.data-table th.sortable:hover {
+  color: var(--text-muted);
+}
+
+.data-table th.sortable::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid currentColor;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.data-table th.sortable:hover::after {
+  opacity: 0.4;
+}
+
+.data-table th.sortable.sort-active {
+  color: var(--text-muted);
+}
+
+.data-table th.sortable.sort-asc::after {
+  border-bottom: 4px solid currentColor;
+  border-top: none;
+  opacity: 1;
+}
+
+.data-table th.sortable.sort-desc::after {
+  border-top: 4px solid currentColor;
+  border-bottom: none;
+  opacity: 1;
+}
+
 .data-table tbody tr {
   border-top: 1px solid var(--border-subtle);
 }

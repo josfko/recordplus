@@ -12,6 +12,7 @@ import {
   CASE_TYPES,
   CASE_STATES,
   CASE_LANGUAGES,
+  SORTABLE_COLUMNS,
 } from "../services/caseService.js";
 
 const router = Router();
@@ -19,11 +20,11 @@ const router = Router();
 /**
  * GET /api/cases
  * List cases with filters and pagination
- * Query params: type, state, search, page, pageSize
+ * Query params: type, state, search, page, pageSize, sortBy, sortOrder
  */
 router.get("/", (req, res, next) => {
   try {
-    const { type, state, search, language, page, pageSize } = req.query;
+    const { type, state, search, language, page, pageSize, sortBy, sortOrder } = req.query;
 
     // Validate type filter if provided
     if (type && !Object.values(CASE_TYPES).includes(type)) {
@@ -64,6 +65,31 @@ router.get("/", (req, res, next) => {
       });
     }
 
+    // Validate sortBy if provided
+    if (sortBy && !SORTABLE_COLUMNS[sortBy]) {
+      return res.status(400).json({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: `Columna de ordenación inválida. Debe ser una de: ${Object.keys(
+            SORTABLE_COLUMNS
+          ).join(", ")}`,
+          field: "sortBy",
+        },
+      });
+    }
+
+    // Validate sortOrder if provided
+    const validSortOrders = ['ASC', 'DESC'];
+    if (sortOrder && !validSortOrders.includes(sortOrder.toUpperCase())) {
+      return res.status(400).json({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Orden inválido. Debe ser ASC o DESC",
+          field: "sortOrder",
+        },
+      });
+    }
+
     const filters = {};
     if (type) filters.type = type;
     if (state) filters.state = state;
@@ -80,7 +106,11 @@ router.get("/", (req, res, next) => {
     if (pagination.pageSize < 1) pagination.pageSize = 20;
     if (pagination.pageSize > 100) pagination.pageSize = 100;
 
-    const result = list(filters, pagination);
+    const sort = {};
+    if (sortBy) sort.sortBy = sortBy;
+    if (sortOrder) sort.sortOrder = sortOrder.toUpperCase();
+
+    const result = list(filters, pagination, sort);
 
     res.json(result);
   } catch (error) {

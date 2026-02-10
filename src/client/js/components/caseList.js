@@ -20,6 +20,8 @@ export class CaseListView {
       language: null,
       search: "",
     };
+    this.sortBy = null;
+    this.sortOrder = 'DESC';
   }
 
   async render() {
@@ -34,7 +36,12 @@ export class CaseListView {
   }
 
   async loadCases() {
-    const data = await api.listCases(this.filters, this.page, this.pageSize);
+    const filtersWithSort = { ...this.filters };
+    if (this.sortBy) {
+      filtersWithSort.sortBy = this.sortBy;
+      filtersWithSort.sortOrder = this.sortOrder;
+    }
+    const data = await api.listCases(filtersWithSort, this.page, this.pageSize);
     this.cases = data.cases || [];
     this.total = data.total || 0;
   }
@@ -97,11 +104,11 @@ export class CaseListView {
         <table class="data-table">
           <thead>
             <tr>
-              <th>Ref. Interna</th>
-              <th>Cliente / Ref. Ext</th>
-              <th>Tipo</th>
-              <th>Estado</th>
-              <th>Entrada</th>
+              ${this.renderSortableHeader('Ref. Interna', 'internal_reference')}
+              ${this.renderSortableHeader('Cliente / Ref. Ext', 'client_name')}
+              ${this.renderSortableHeader('Tipo', 'type')}
+              ${this.renderSortableHeader('Estado', 'state')}
+              ${this.renderSortableHeader('Entrada', 'entry_date')}
               <th>Acciones</th>
             </tr>
           </thead>
@@ -196,7 +203,38 @@ export class CaseListView {
       .join("");
   }
 
+  renderSortableHeader(label, column) {
+    const isActive = this.sortBy === column;
+    const classes = ['sortable'];
+    if (isActive) {
+      classes.push('sort-active');
+      classes.push(this.sortOrder === 'ASC' ? 'sort-asc' : 'sort-desc');
+    }
+    return `<th class="${classes.join(' ')}" data-sort-column="${column}">${label}</th>`;
+  }
+
   bindEvents() {
+    // Sortable column headers
+    this.container.querySelectorAll('th.sortable').forEach((th) => {
+      th.addEventListener('click', async () => {
+        const column = th.dataset.sortColumn;
+        if (this.sortBy === column) {
+          // Cycle: ASC → DESC → none
+          if (this.sortOrder === 'ASC') {
+            this.sortOrder = 'DESC';
+          } else {
+            this.sortBy = null;
+            this.sortOrder = 'DESC';
+          }
+        } else {
+          this.sortBy = column;
+          this.sortOrder = 'ASC';
+        }
+        this.page = 1;
+        await this.refresh();
+      });
+    });
+
     // Type filter tabs
     this.container.querySelectorAll(".filter-tab:not(.lang-tab)").forEach((tab) => {
       tab.addEventListener("click", async (e) => {
@@ -275,6 +313,15 @@ export class CaseListView {
     this.container.querySelector(
       ".table-info"
     ).textContent = `Mostrando ${this.cases.length} de ${this.total} expedientes`;
+
+    // Update sort header classes
+    this.container.querySelectorAll('th.sortable').forEach((th) => {
+      const column = th.dataset.sortColumn;
+      const isActive = this.sortBy === column;
+      th.classList.toggle('sort-active', isActive);
+      th.classList.toggle('sort-asc', isActive && this.sortOrder === 'ASC');
+      th.classList.toggle('sort-desc', isActive && this.sortOrder === 'DESC');
+    });
 
     // Update type filter tabs
     this.container.querySelectorAll(".filter-tab:not(.lang-tab)").forEach((tab) => {

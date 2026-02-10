@@ -354,6 +354,8 @@ class ApiClient {
     if (filters.state) params.set("state", filters.state);
     if (filters.search) params.set("search", filters.search);
     if (filters.language) params.set("language", filters.language);
+    if (filters.sortBy) params.set("sortBy", filters.sortBy);
+    if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
     params.set("page", page.toString());
     params.set("pageSize", pageSize.toString());
 

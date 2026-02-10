@@ -14,6 +14,7 @@ import {
   CASE_TYPES,
   CASE_STATES,
   JUDICIAL_DISTRICTS,
+  SORTABLE_COLUMNS,
 } from "../services/caseService.js";
 import { ValidationError, ConflictError } from "../errors.js";
 import { resetCounter } from "../services/referenceGenerator.js";
@@ -571,6 +572,84 @@ describe("Case Service - Property Tests", () => {
         ),
         { numRuns: 100 }
       );
+    });
+  });
+
+  describe("Sort functionality", () => {
+    beforeEach(() => {
+      execute("DELETE FROM cases");
+      resetCounter();
+
+      // Create cases with known client names for sort verification
+      // Using ASCII-only names to avoid SQLite BINARY collation quirks with accented chars
+      create({
+        type: CASE_TYPES.ARAG,
+        clientName: "Alvarez Garcia, Ana",
+        aragReference: "DJ00900001",
+        entryDate: "2025-01-10",
+      });
+      create({
+        type: CASE_TYPES.ARAG,
+        clientName: "Martinez Lopez, Carlos",
+        aragReference: "DJ00900002",
+        entryDate: "2025-03-15",
+      });
+      create({
+        type: CASE_TYPES.ARAG,
+        clientName: "Benitez Ruiz, Beatriz",
+        aragReference: "DJ00900003",
+        entryDate: "2025-02-20",
+      });
+    });
+
+    it("should sort by client_name ASC", () => {
+      const result = list({}, {}, { sortBy: "client_name", sortOrder: "ASC" });
+      const names = result.cases.map((c) => c.clientName);
+      expect(names).toEqual([
+        "Alvarez Garcia, Ana",
+        "Benitez Ruiz, Beatriz",
+        "Martinez Lopez, Carlos",
+      ]);
+    });
+
+    it("should sort by client_name DESC", () => {
+      const result = list({}, {}, { sortBy: "client_name", sortOrder: "DESC" });
+      const names = result.cases.map((c) => c.clientName);
+      expect(names).toEqual([
+        "Martinez Lopez, Carlos",
+        "Benitez Ruiz, Beatriz",
+        "Alvarez Garcia, Ana",
+      ]);
+    });
+
+    it("should sort by entry_date ASC", () => {
+      const result = list({}, {}, { sortBy: "entry_date", sortOrder: "ASC" });
+      const dates = result.cases.map((c) => c.entryDate);
+      expect(dates).toEqual(["2025-01-10", "2025-02-20", "2025-03-15"]);
+    });
+
+    it("should use default sort (entry_date DESC) when no sort params", () => {
+      const result = list({}, {});
+      const dates = result.cases.map((c) => c.entryDate);
+      expect(dates).toEqual(["2025-03-15", "2025-02-20", "2025-01-10"]);
+    });
+
+    it("should fall back to default sort for invalid sort column", () => {
+      const result = list({}, {}, { sortBy: "invalid_column", sortOrder: "ASC" });
+      const dates = result.cases.map((c) => c.entryDate);
+      // Falls back to entry_date DESC
+      expect(dates).toEqual(["2025-03-15", "2025-02-20", "2025-01-10"]);
+    });
+
+    it("should fall back to DESC for invalid sort order", () => {
+      const result = list({}, {}, { sortBy: "client_name", sortOrder: "INVALID" });
+      const names = result.cases.map((c) => c.clientName);
+      // Invalid order defaults to DESC in the service
+      expect(names).toEqual([
+        "Martinez Lopez, Carlos",
+        "Benitez Ruiz, Beatriz",
+        "Alvarez Garcia, Ana",
+      ]);
     });
   });
 });
