@@ -17,9 +17,9 @@ import {
   aragReferenceExists,
 } from "./referenceGenerator.js";
 import {
-  ValidationError as AppValidationError,
-  ConflictError as AppConflictError,
-  NotFoundError as AppNotFoundError,
+  ValidationError,
+  ConflictError,
+  NotFoundError,
   DatabaseError,
 } from "../errors.js";
 import { CaseErrors, ConflictErrors, DatabaseErrors } from "../errorMessages.js";
@@ -55,40 +55,8 @@ export const JUDICIAL_DISTRICTS = [
   "Antequera",
 ];
 
-/**
- * Validation error class
- */
-export class ValidationError extends Error {
-  constructor(message, field = null) {
-    super(message);
-    this.name = "ValidationError";
-    this.field = field;
-    this.code = "VALIDATION_ERROR";
-  }
-}
-
-/**
- * Conflict error class (for duplicates)
- */
-export class ConflictError extends Error {
-  constructor(message, field = null) {
-    super(message);
-    this.name = "ConflictError";
-    this.field = field;
-    this.code = "CONFLICT_ERROR";
-  }
-}
-
-/**
- * Not found error class
- */
-export class NotFoundError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "NotFoundError";
-    this.code = "NOT_FOUND";
-  }
-}
+// Re-export error classes from errors.js for backward compatibility
+export { ValidationError, ConflictError, NotFoundError };
 
 /**
  * Validate case data for creation

@@ -131,18 +131,35 @@ record+/
 │   ├── server/                    # Node.js + Express Backend
 │   │   ├── index.js               # Express entry point
 │   │   ├── database.js            # SQLite connection
+│   │   ├── errors.js              # AppError hierarchy (ValidationError, NotFoundError, etc.)
+│   │   ├── errorMessages.js       # Structured error message builders
 │   │   ├── routes/
-│   │   │   ├── cases.js
-│   │   │   ├── config.js
+│   │   │   ├── cases.js           # Core CRUD operations
+│   │   │   ├── arag.js            # ARAG invoicing (minuta, suplido, email)
+│   │   │   ├── particulares.js    # Hoja de Encargo workflow
+│   │   │   ├── turnoOficio.js     # Turno de Oficio (finalize, upload)
+│   │   │   ├── config.js          # Configuration + certificate testing
 │   │   │   ├── dashboard.js
-│   │   │   └── admin.js
+│   │   │   ├── admin.js
+│   │   │   ├── backup.js          # Database backup management
+│   │   │   └── exportImport.js    # Data export/import
 │   │   ├── services/
 │   │   │   ├── caseService.js
 │   │   │   ├── referenceGenerator.js
-│   │   │   └── configurationService.js
-│   │   ├── middleware/
-│   │   │   ├── validation.js
-│   │   │   └── errorHandler.js
+│   │   │   ├── configurationService.js
+│   │   │   ├── minutaWorkflowService.js
+│   │   │   ├── hojaEncargoWorkflowService.js
+│   │   │   ├── pdfGeneratorService.js
+│   │   │   ├── signatureService.js
+│   │   │   ├── emailService.js
+│   │   │   ├── emailTestService.js
+│   │   │   ├── documentHistoryService.js
+│   │   │   ├── emailHistoryService.js
+│   │   │   ├── aragValidation.js
+│   │   │   ├── dashboardService.js
+│   │   │   ├── adminService.js
+│   │   │   ├── backupService.js
+│   │   │   └── exportImportService.js
 │   │   └── __tests__/
 │   │
 │   └── client/                    # Frontend (Cloudflare Pages)
@@ -155,17 +172,32 @@ record+/
 │       │   ├── app.js
 │       │   ├── router.js
 │       │   ├── api.js
+│       │   ├── themeManager.js
 │       │   └── components/
 │       │       ├── dashboard.js
 │       │       ├── caseList.js
 │       │       ├── caseDetail.js
 │       │       ├── caseForm.js
 │       │       ├── configuration.js
-│       │       └── adminPanel.js
+│       │       ├── adminPanel.js
+│       │       ├── facturacionArag.js
+│       │       ├── facturacionList.js
+│       │       ├── particulares.js
+│       │       ├── particularesList.js
+│       │       ├── turnoOficio.js
+│       │       ├── turnoList.js
+│       │       ├── estadisticas.js
+│       │       ├── backupPanel.js
+│       │       ├── confirmModal.js
+│       │       ├── documentUploadModal.js
+│       │       └── hojaEncargoModal.js
 │       └── __tests__/
 │
 ├── migrations/
-│   └── 001_initial_schema.sql
+│   ├── 001_initial_schema.sql
+│   ├── 002_smtp_configuration.sql
+│   ├── 003_optimistic_locking.sql
+│   └── 004_add_language_field.sql
 │
 ├── data/                          # On VPS only (not in repo)
 │   ├── legal-cases.db             # SQLite database
@@ -203,17 +235,20 @@ record+/
 ## API Routes
 
 ```
-GET    /api/cases              - List cases (filters: type, state, search, page)
+# Core Cases
+GET    /api/cases              - List cases (filters: type, state, search, language, page)
 GET    /api/cases/:id          - Get case by ID
 POST   /api/cases              - Create new case
-PUT    /api/cases/:id          - Update case
+PUT    /api/cases/:id          - Update case (supports expectedVersion for optimistic locking)
 POST   /api/cases/:id/archive  - Archive case (requires closureDate)
 POST   /api/cases/:id/judicial - Transition ARAG case to judicial
 
 GET    /api/dashboard          - Get dashboard metrics
 
+# Configuration
 GET    /api/config             - Get all configuration
 PUT    /api/config             - Update configuration
+POST   /api/config/test-certificate - Test P12 certificate (path + password)
 
 # ARAG Facturación
 POST   /api/cases/:id/minuta   - Generate, sign, and send minuta
@@ -222,11 +257,32 @@ GET    /api/cases/:id/history  - Get document and email history
 GET    /api/documents/:id/download - Download a document
 POST   /api/email/test         - Test SMTP connection
 GET    /api/mileage-rates      - Get mileage rates for all districts
-POST   /api/arag/cases/:caseId/emails/:emailId/retry - Retry failed email
+POST   /api/cases/cases/:caseId/emails/:emailId/retry - Retry failed email
 
+# Particulares (Hoja de Encargo)
+POST   /api/cases/:id/hoja-encargo          - Generate Hoja de Encargo PDF
+POST   /api/cases/:id/hoja-encargo/sign     - Sign Hoja de Encargo document
+POST   /api/cases/:id/hoja-encargo/send     - Send Hoja de Encargo by email
+GET    /api/cases/:id/hoja-encargo/documents - Get Hoja de Encargo history
+
+# Turno de Oficio
+POST   /api/turno/:id/finalize              - Finalize case (ABIERTO → FINALIZADO)
+POST   /api/turno/:id/reopen                - Reopen case (FINALIZADO → ABIERTO)
+POST   /api/turno/:id/upload                - Upload PDF document
+DELETE /api/turno/:id/documents/:documentId  - Delete uploaded document
+
+# Backup
+GET    /api/backup/status              - Get backup system status
+GET    /api/backup/list                - List available backups
+POST   /api/backup/create              - Create on-demand backup
+GET    /api/backup/:filename/download  - Download a backup
+DELETE /api/backup/:filename           - Delete a backup
+
+# Data Management
 POST   /api/export             - Export all data as JSON
 POST   /api/import             - Import data from JSON
 
+# Admin
 GET    /api/admin/tables       - List tables with counts (admin only)
 GET    /api/admin/table/:name  - Get table contents (admin only)
 POST   /api/admin/query        - Execute SELECT query (admin only)
@@ -237,7 +293,7 @@ GET    /api/health             - Health check
 ## Database Schema
 
 ```sql
--- Cases table
+-- Cases table (includes migrations 003 + 004)
 CREATE TABLE cases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT NOT NULL CHECK (type IN ('ARAG', 'PARTICULAR', 'TURNO_OFICIO')),
@@ -246,11 +302,13 @@ CREATE TABLE cases (
   arag_reference TEXT UNIQUE,
   designation TEXT,
   state TEXT NOT NULL DEFAULT 'ABIERTO' CHECK (state IN ('ABIERTO', 'JUDICIAL', 'ARCHIVADO')),
+  language TEXT NOT NULL DEFAULT 'es',        -- migration 004
   entry_date TEXT NOT NULL,
   judicial_date TEXT,
   judicial_district TEXT,
   closure_date TEXT,
   observations TEXT DEFAULT '',
+  version INTEGER NOT NULL DEFAULT 1,         -- migration 003 (optimistic locking)
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -431,12 +489,15 @@ Failed emails can be retried via:
 
 | Service | File | Description |
 |---------|------|-------------|
-| MinutaWorkflowService | `minutaWorkflowService.js` | Orchestrates complete workflow |
+| MinutaWorkflowService | `minutaWorkflowService.js` | Orchestrates ARAG invoice workflow |
+| HojaEncargoWorkflowService | `hojaEncargoWorkflowService.js` | Orchestrates Particulares workflow |
 | PDFGeneratorService | `pdfGeneratorService.js` | Creates PDF documents |
 | SignatureService | `signatureService.js` | Signs PDFs (visual or crypto) |
 | EmailService | `emailService.js` | SMTP email delivery |
 | DocumentHistoryService | `documentHistoryService.js` | Tracks generated documents |
 | EmailHistoryService | `emailHistoryService.js` | Tracks email attempts |
+| BackupService | `backupService.js` | Database backup management |
+| AragValidation | `aragValidation.js` | ARAG-specific validation rules |
 
 ### Digital Signature
 

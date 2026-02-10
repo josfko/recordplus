@@ -5,7 +5,6 @@ import { Router } from "express";
 import {
   getAll,
   update,
-  ConfigValidationError,
 } from "../services/configurationService.js";
 import { CryptoSignatureStrategy } from "../services/signatureService.js";
 
@@ -48,15 +47,6 @@ router.put("/", (req, res, next) => {
     const config = update(req.body);
     res.json(config);
   } catch (error) {
-    if (error instanceof ConfigValidationError) {
-      return res.status(400).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          field: error.field,
-        },
-      });
-    }
     next(error);
   }
 });

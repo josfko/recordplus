@@ -5,6 +5,9 @@
 
 import { api } from "../api.js";
 import { showToast } from "../app.js";
+import { escapeAttr } from "../utils/escapeHtml.js";
+
+const PASSWORD_PLACEHOLDER = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
 
 export class ConfigurationView {
   constructor(container) {
@@ -51,17 +54,17 @@ export class ConfigurationView {
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Tarifa Base (€)</label>
-              <input type="number" name="arag_base_fee" id="arag-fee" value="${c.arag_base_fee || 203}" step="0.01" min="0"
+              <input type="number" name="arag_base_fee" id="arag-fee" value="${escapeAttr(c.arag_base_fee ?? 203)}" step="0.01" min="0"
                 style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
             </div>
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">IVA (%)</label>
-              <input type="number" name="vat_rate" id="vat-rate" value="${c.vat_rate || 21}" step="0.1" min="0" max="100"
+              <input type="number" name="vat_rate" id="vat-rate" value="${escapeAttr(c.vat_rate ?? 21)}" step="0.1" min="0" max="100"
                 style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
             </div>
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Email Facturación</label>
-              <input type="email" name="arag_email" id="arag-email" value="${c.arag_email || "facturacionsiniestros@arag.es"}"
+              <input type="email" name="arag_email" id="arag-email" value="${escapeAttr(c.arag_email ?? "facturacionsiniestros@arag.es")}"
                 style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
             </div>
           </div>
@@ -77,7 +80,7 @@ export class ConfigurationView {
                 (d) => `
               <div>
                 <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">${d.label} (€)</label>
-                <input type="number" name="${d.key}" value="${c[d.key] || 0}" step="0.01" min="0"
+                <input type="number" name="${d.key}" value="${escapeAttr(c[d.key] ?? 0)}" step="0.01" min="0"
                   style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
               </div>
             `,
@@ -102,12 +105,12 @@ export class ConfigurationView {
           <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Servidor SMTP</label>
-              <input type="text" name="smtp_host" id="smtp-host" value="${c.smtp_host || ""}" placeholder="smtp.example.com"
+              <input type="text" name="smtp_host" id="smtp-host" value="${escapeAttr(c.smtp_host ?? "")}" placeholder="smtp.example.com"
                 style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
             </div>
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Puerto</label>
-              <input type="number" name="smtp_port" id="smtp-port" value="${c.smtp_port || 587}" min="1" max="65535"
+              <input type="number" name="smtp_port" id="smtp-port" value="${escapeAttr(c.smtp_port ?? 587)}" min="1" max="65535"
                 style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
             </div>
             <div>
@@ -123,13 +126,13 @@ export class ConfigurationView {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Usuario SMTP</label>
-              <input type="text" name="smtp_user" id="smtp-user" value="${c.smtp_user || ""}" placeholder="usuario@example.com"
+              <input type="text" name="smtp_user" id="smtp-user" value="${escapeAttr(c.smtp_user ?? "")}" placeholder="usuario@example.com"
                 style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
             </div>
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Contraseña SMTP</label>
               <div style="position: relative;">
-                <input type="password" name="smtp_password" id="smtp-password" value="${c.smtp_password || ""}" placeholder="••••••••"
+                <input type="password" name="smtp_password" id="smtp-password" value="${escapeAttr(c.smtp_password ?? "")}" placeholder="••••••••"
                   style="width: 100%; padding: 10px 12px; padding-right: 40px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
                 <button type="button" class="toggle-password" data-target="smtp-password" 
                   style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; color: var(--text-dimmed);">
@@ -148,7 +151,7 @@ export class ConfigurationView {
           
           <div>
             <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Dirección de Envío (From)</label>
-            <input type="email" name="smtp_from" id="smtp-from" value="${c.smtp_from || ""}" placeholder="despacho@example.com"
+            <input type="email" name="smtp_from" id="smtp-from" value="${escapeAttr(c.smtp_from ?? "")}" placeholder="despacho@example.com"
               style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
           </div>
           
@@ -175,13 +178,13 @@ export class ConfigurationView {
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Ruta del Certificado (.p12/.pfx)</label>
-              <input type="text" name="certificate_path" id="cert-path" value="${c.certificate_path || ""}" placeholder="/home/appuser/data/certificates/firma.p12"
+              <input type="text" name="certificate_path" id="cert-path" value="${escapeAttr(c.certificate_path ?? "")}" placeholder="/home/appuser/data/certificates/firma.p12"
                 style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
             </div>
             <div>
               <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Contraseña del Certificado</label>
               <div style="position: relative;">
-                <input type="password" name="certificate_password" id="cert-password" value="${c.certificate_password || ""}" placeholder="••••••••"
+                <input type="password" name="certificate_password" id="cert-password" value="${escapeAttr(c.certificate_password ?? "")}" placeholder="••••••••"
                   style="width: 100%; padding: 10px 12px; padding-right: 40px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
                 <button type="button" class="toggle-password" data-target="cert-password"
                   style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 4px; color: var(--text-dimmed);">
@@ -220,7 +223,7 @@ export class ConfigurationView {
           
           <div>
             <label style="font-size: 12px; color: var(--text-dimmed); display: block; margin-bottom: 4px;">Ruta de Documentos</label>
-            <input type="text" name="documents_path" id="docs-path" value="${c.documents_path || "data/documents"}" placeholder="data/documents"
+            <input type="text" name="documents_path" id="docs-path" value="${escapeAttr(c.documents_path ?? "data/documents")}" placeholder="data/documents"
               style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px;">
           </div>
           <p style="font-size: 11px; color: var(--text-dimmed); margin-top: 8px;">
@@ -276,6 +279,31 @@ export class ConfigurationView {
           data[key] = parseFloat(value) || 0;
         } else {
           data[key] = value;
+        }
+      }
+
+      // Don't send password fields if they still have the server placeholder
+      if (data.smtp_password === PASSWORD_PLACEHOLDER) delete data.smtp_password;
+      if (data.certificate_password === PASSWORD_PLACEHOLDER) delete data.certificate_password;
+
+      // Client-side range validation
+      const fee = parseFloat(data.arag_base_fee);
+      if (isNaN(fee) || fee < 0 || fee > 10000) {
+        showToast("Tarifa Base debe estar entre 0 y 10.000 €", "error");
+        return;
+      }
+      const vat = parseFloat(data.vat_rate);
+      if (isNaN(vat) || vat < 0 || vat > 100) {
+        showToast("IVA debe estar entre 0% y 100%", "error");
+        return;
+      }
+      for (const [key, value] of Object.entries(data)) {
+        if (key.startsWith("mileage_")) {
+          const val = parseFloat(value);
+          if (isNaN(val) || val < 0 || val > 1000) {
+            showToast(`Kilometraje inválido (debe estar entre 0 y 1.000 €)`, "error");
+            return;
+          }
         }
       }
 
@@ -419,15 +447,15 @@ export class ConfigurationView {
           certDetails.innerHTML = `
             <div style="display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;">
               <span style="color: var(--text-dimmed);">Titular:</span>
-              <span style="font-weight: 500;">${result.cn || "—"}</span>
+              <span style="font-weight: 500;">${escapeAttr(result.cn || "—")}</span>
               <span style="color: var(--text-dimmed);">Organización:</span>
-              <span>${result.organization || "—"}</span>
+              <span>${escapeAttr(result.organization || "—")}</span>
               <span style="color: var(--text-dimmed);">Emisor:</span>
-              <span>${result.issuer || "—"}</span>
+              <span>${escapeAttr(result.issuer || "—")}</span>
               <span style="color: var(--text-dimmed);">Válido desde:</span>
-              <span>${validFrom}</span>
+              <span>${escapeAttr(validFrom)}</span>
               <span style="color: var(--text-dimmed);">Válido hasta:</span>
-              <span class="${result.isExpired ? "status-text-expired" : ""}">${validTo}</span>
+              <span class="${result.isExpired ? "status-text-expired" : ""}">${escapeAttr(validTo)}</span>
             </div>
           `;
           certDetails.style.display = "block";

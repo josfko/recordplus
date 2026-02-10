@@ -51,15 +51,6 @@ router.post("/:id/hoja-encargo", async (req, res, next) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
-    if (error.field) {
-      return res.status(400).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: error.message,
-          field: error.field,
-        },
-      });
-    }
     next(error);
   }
 });
@@ -130,15 +121,6 @@ router.post("/:id/hoja-encargo/send", async (req, res, next) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
-    if (error.field) {
-      return res.status(400).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: error.message,
-          field: error.field,
-        },
-      });
-    }
     next(error);
   }
 });

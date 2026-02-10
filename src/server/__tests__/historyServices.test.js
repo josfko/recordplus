@@ -119,6 +119,43 @@ describe("DocumentHistoryService", () => {
       expect(updated.signed).toBe(1);
     });
   });
+
+  describe("delete", () => {
+    it("should delete document record from database", () => {
+      const doc = documentHistory.create({
+        caseId: testCaseId,
+        documentType: "MINUTA",
+        filePath: "/nonexistent/path/delete-test.pdf",
+        signed: 0,
+      });
+
+      expect(documentHistory.getById(doc.id)).toBeTruthy();
+
+      const result = documentHistory.delete(doc.id, false);
+
+      expect(result).toBe(true);
+      expect(documentHistory.getById(doc.id)).toBeFalsy();
+    });
+
+    it("should return false for non-existent document", () => {
+      const result = documentHistory.delete(999999, false);
+      expect(result).toBe(false);
+    });
+
+    it("should handle missing file gracefully when deleteFile is true", () => {
+      const doc = documentHistory.create({
+        caseId: testCaseId,
+        documentType: "MINUTA",
+        filePath: "/nonexistent/path/no-such-file.pdf",
+        signed: 0,
+      });
+
+      // Should not throw even though file doesn't exist
+      const result = documentHistory.delete(doc.id, true);
+      expect(result).toBe(true);
+      expect(documentHistory.getById(doc.id)).toBeFalsy();
+    });
+  });
 });
 
 describe("EmailHistoryService", () => {

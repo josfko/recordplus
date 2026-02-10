@@ -62,8 +62,8 @@ export class FacturacionAragView {
     const cfg = this.config;
 
     // Calculate invoice amounts
-    const baseRate = parseFloat(cfg.arag_base_rate) || 203;
-    const vatRate = parseFloat(cfg.arag_vat_rate) || 21;
+    const baseRate = parseFloat(cfg.arag_base_fee) || 203;
+    const vatRate = parseFloat(cfg.vat_rate) || 21;
     const vatAmount = (baseRate * vatRate) / 100;
     const totalAmount = baseRate + vatAmount;
 

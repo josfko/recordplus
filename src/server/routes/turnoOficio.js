@@ -11,8 +11,6 @@ import {
   finalizeTurno,
   CASE_TYPES,
   CASE_STATES,
-  ValidationError,
-  NotFoundError,
 } from "../services/caseService.js";
 import { DocumentHistoryService } from "../services/documentHistoryService.js";
 import { execute } from "../database.js";
@@ -106,15 +104,6 @@ router.post("/:id/finalize", loadTurnoCase, (req, res, next) => {
       data: updatedCase,
     });
   } catch (error) {
-    if (error instanceof ValidationError || error instanceof NotFoundError) {
-      return res.status(400).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          field: error.field,
-        },
-      });
-    }
     next(error);
   }
 });

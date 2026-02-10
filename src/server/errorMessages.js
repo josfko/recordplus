@@ -6,6 +6,13 @@
 // 2. Why it failed
 // 3. What to do next
 
+import {
+  ValidationError,
+  NotFoundError,
+  ConflictError,
+  DatabaseError,
+} from "./errors.js";
+
 /**
  * Error messages for configuration-related errors
  */
@@ -33,6 +40,20 @@ export const ConfigErrors = {
     message: `El email '${value}' no tiene un formato válido. Por favor, use el formato nombre@dominio.com.`,
     field,
     details: { received: value, expected: "nombre@dominio.com" },
+  }),
+
+  /**
+   * Numeric value out of expected range
+   * @param {string} field - Field name
+   * @param {*} value - The out-of-range value
+   * @param {number} min - Minimum allowed
+   * @param {number} max - Maximum allowed
+   */
+  numericOutOfRange: (field, value, min, max) => ({
+    code: "CONFIG_VALIDATION_RANGE",
+    message: `El valor de '${field}' (${value}) está fuera del rango válido (${min}–${max}). Por favor, introduzca un valor correcto.`,
+    field,
+    details: { received: value, min, max },
   }),
 
   /**
@@ -329,8 +350,6 @@ export const ServerErrors = {
  * @returns {AppError} Constructed error instance
  */
 export function createError(errorMsg, ErrorClass) {
-  const { ValidationError, NotFoundError, ConflictError, DatabaseError } = require("./errors.js");
-
   const ClassMap = {
     ValidationError,
     NotFoundError,

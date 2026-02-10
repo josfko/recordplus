@@ -10,6 +10,7 @@ import { SignatureService } from "./signatureService.js";
 import { EmailService } from "./emailService.js";
 import { DocumentHistoryService } from "./documentHistoryService.js";
 import { EmailHistoryService } from "./emailHistoryService.js";
+import { ValidationError } from "../errors.js";
 
 export class HojaEncargoWorkflowService {
   constructor(config) {
@@ -30,19 +31,15 @@ export class HojaEncargoWorkflowService {
    * Validate Hoja de Encargo input data
    * @param {string} services - Services description
    * @param {number} fees - Professional fees
-   * @throws {Error} If validation fails
+   * @throws {ValidationError} If validation fails
    */
   validateInput(services, fees) {
     if (!services || typeof services !== "string" || services.trim().length === 0) {
-      const error = new Error("La descripción de servicios es obligatoria");
-      error.field = "services";
-      throw error;
+      throw new ValidationError("La descripción de servicios es obligatoria", "services");
     }
 
     if (fees === undefined || fees === null || isNaN(fees) || fees <= 0) {
-      const error = new Error("Los honorarios deben ser un número positivo");
-      error.field = "fees";
-      throw error;
+      throw new ValidationError("Los honorarios deben ser un número positivo", "fees");
     }
   }
 
@@ -128,9 +125,7 @@ export class HojaEncargoWorkflowService {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!recipientEmail || !emailRegex.test(recipientEmail)) {
-      const error = new Error("Formato de email inválido");
-      error.field = "email";
-      throw error;
+      throw new ValidationError("Formato de email inválido", "email");
     }
 
     // Check if SMTP is configured

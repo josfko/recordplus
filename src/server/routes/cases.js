@@ -9,18 +9,10 @@ import {
   update,
   archive,
   transitionToJudicial,
-  ValidationError,
-  ConflictError,
-  NotFoundError,
   CASE_TYPES,
   CASE_STATES,
   CASE_LANGUAGES,
 } from "../services/caseService.js";
-import {
-  ValidationError as AppValidationError,
-  ConflictError as AppConflictError,
-  NotFoundError as AppNotFoundError,
-} from "../errors.js";
 
 const router = Router();
 
@@ -142,27 +134,6 @@ router.post("/", (req, res, next) => {
     const caseData = create(req.body);
     res.status(201).json(caseData);
   } catch (error) {
-    // Handle both legacy and new error classes
-    if (error instanceof ValidationError || error instanceof AppValidationError) {
-      return res.status(400).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          field: error.field,
-          details: error.details,
-        },
-      });
-    }
-    if (error instanceof ConflictError || error instanceof AppConflictError) {
-      return res.status(409).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          field: error.field,
-          details: error.details,
-        },
-      });
-    }
     next(error);
   }
 });
@@ -197,35 +168,6 @@ router.put("/:id", (req, res, next) => {
     const caseData = update(id, updateData, version);
     res.json(caseData);
   } catch (error) {
-    // Handle both legacy and new error classes
-    if (error instanceof ValidationError || error instanceof AppValidationError) {
-      return res.status(400).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          field: error.field,
-          details: error.details,
-        },
-      });
-    }
-    if (error instanceof ConflictError || error instanceof AppConflictError) {
-      return res.status(409).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          field: error.field,
-          details: error.details,
-        },
-      });
-    }
-    if (error instanceof NotFoundError || error instanceof AppNotFoundError) {
-      return res.status(404).json({
-        error: {
-          code: error.code,
-          message: error.message,
-        },
-      });
-    }
     next(error);
   }
 });
@@ -252,23 +194,6 @@ router.post("/:id/archive", (req, res, next) => {
     const caseData = archive(id, closureDate);
     res.json(caseData);
   } catch (error) {
-    if (error instanceof ValidationError) {
-      return res.status(400).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          field: error.field,
-        },
-      });
-    }
-    if (error instanceof NotFoundError) {
-      return res.status(404).json({
-        error: {
-          code: error.code,
-          message: error.message,
-        },
-      });
-    }
     next(error);
   }
 });
@@ -296,23 +221,6 @@ router.post("/:id/judicial", (req, res, next) => {
     const caseData = transitionToJudicial(id, judicialDate, district);
     res.json(caseData);
   } catch (error) {
-    if (error instanceof ValidationError) {
-      return res.status(400).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          field: error.field,
-        },
-      });
-    }
-    if (error instanceof NotFoundError) {
-      return res.status(404).json({
-        error: {
-          code: error.code,
-          message: error.message,
-        },
-      });
-    }
     next(error);
   }
 });

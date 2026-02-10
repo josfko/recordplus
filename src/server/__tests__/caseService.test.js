@@ -14,9 +14,8 @@ import {
   CASE_TYPES,
   CASE_STATES,
   JUDICIAL_DISTRICTS,
-  ValidationError,
-  ConflictError,
 } from "../services/caseService.js";
+import { ValidationError, ConflictError } from "../errors.js";
 import { resetCounter } from "../services/referenceGenerator.js";
 import { closeDatabase, execute } from "../database.js";
 

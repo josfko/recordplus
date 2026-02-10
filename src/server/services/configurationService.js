@@ -47,17 +47,26 @@ const NUMERIC_KEYS = [
 // Configuration keys that must be valid emails
 const EMAIL_KEYS = ["arag_email"];
 
-/**
- * Validation error class
- */
-export class ConfigValidationError extends Error {
-  constructor(message, field = null) {
-    super(message);
-    this.name = "ConfigValidationError";
-    this.field = field;
-    this.code = "VALIDATION_ERROR";
-  }
-}
+// Reasonable ranges for numeric configuration values
+const NUMERIC_RANGES = {
+  arag_base_fee: { min: 0, max: 10000 },
+  vat_rate: { min: 0, max: 100 },
+  mileage_torrox: { min: 0, max: 1000 },
+  mileage_velez_malaga: { min: 0, max: 1000 },
+  mileage_torremolinos: { min: 0, max: 1000 },
+  mileage_fuengirola: { min: 0, max: 1000 },
+  mileage_marbella: { min: 0, max: 1000 },
+  mileage_estepona: { min: 0, max: 1000 },
+  mileage_antequera: { min: 0, max: 1000 },
+};
+
+// Sensitive keys that should never be sent to the frontend
+const SENSITIVE_KEYS = ["smtp_password", "certificate_password"];
+const SENSITIVE_PLACEHOLDER = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
+
+// ConfigValidationError removed - use ValidationError from errors.js instead
+// Alias for backward compatibility (used by tests and default export)
+export const ConfigValidationError = ValidationError;
 
 /**
  * Validate email format
@@ -66,9 +75,13 @@ export class ConfigValidationError extends Error {
  */
 export function isValidEmail(email) {
   if (!email || typeof email !== "string") return false;
-  // Basic email regex - allows most valid emails
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
+  const trimmed = email.trim();
+  if (trimmed.length < 5 || trimmed.length > 254) return false;
+  // Reject consecutive dots (corruption signal)
+  if (/\.\./.test(trimmed)) return false;
+  // Require valid local part, domain, and TLD (2+ alpha chars)
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$/;
+  return emailRegex.test(trimmed);
 }
 
 /**
@@ -80,6 +93,24 @@ export function isPositiveNumber(value) {
   if (value === null || value === undefined || value === "") return false;
   const num = parseFloat(value);
   return !isNaN(num) && num >= 0;
+}
+
+/**
+ * Validate a numeric config value is within expected range for its key.
+ * Rejects NaN, non-finite, and out-of-range values (e.g. scientific notation extremes).
+ * @param {string} key - Configuration key
+ * @param {string|number} value - Value to validate
+ * @returns {boolean} True if valid
+ */
+export function isValidNumericConfig(key, value) {
+  if (value === null || value === undefined || value === "") return false;
+  const num = parseFloat(value);
+  if (isNaN(num) || !isFinite(num)) return false;
+  // Reject scientific notation (corruption signal like 1.02e-35)
+  if (/[eE]/.test(String(value))) return false;
+  const range = NUMERIC_RANGES[key];
+  if (!range) return num >= 0;
+  return num >= range.min && num <= range.max;
 }
 
 // Flag to track if defaults have been initialized this session
@@ -138,22 +169,65 @@ export function ensureDefaults() {
 }
 
 /**
- * Get all configuration values
+ * Get all configuration values with self-healing for corrupted data.
+ * Validates each value on read and auto-repairs corrupted entries.
  * @returns {Object} Configuration key-value pairs
  */
 export function getAll() {
-  // Note: Defaults are initialized once at server startup via ensureDefaults()
-  // This function no longer calls initializeDefaults() on every request
-
   const rows = query("SELECT key, value FROM configuration");
   const config = {};
+  const corrupted = [];
 
   for (const row of rows) {
-    // Convert numeric values to numbers for the response
     if (NUMERIC_KEYS.includes(row.key)) {
-      config[row.key] = parseFloat(row.value);
+      if (isValidNumericConfig(row.key, row.value)) {
+        config[row.key] = parseFloat(row.value);
+      } else {
+        console.warn(
+          `[Config] Corrupted value for '${row.key}': '${row.value}'. Resetting to default '${DEFAULT_CONFIG[row.key]}'.`
+        );
+        config[row.key] = parseFloat(DEFAULT_CONFIG[row.key]);
+        corrupted.push({ key: row.key, defaultValue: DEFAULT_CONFIG[row.key] });
+      }
+    } else if (EMAIL_KEYS.includes(row.key)) {
+      if (isValidEmail(row.value)) {
+        config[row.key] = row.value;
+      } else {
+        console.warn(
+          `[Config] Corrupted email for '${row.key}': '${row.value}'. Resetting to default '${DEFAULT_CONFIG[row.key]}'.`
+        );
+        config[row.key] = DEFAULT_CONFIG[row.key];
+        corrupted.push({ key: row.key, defaultValue: DEFAULT_CONFIG[row.key] });
+      }
     } else {
       config[row.key] = row.value;
+    }
+  }
+
+  // Auto-repair corrupted values in the database
+  if (corrupted.length > 0) {
+    try {
+      transaction(() => {
+        const db = getDatabase();
+        const fixStmt = db.prepare(
+          "UPDATE configuration SET value = ?, updated_at = datetime('now') WHERE key = ?"
+        );
+        for (const item of corrupted) {
+          fixStmt.run(item.defaultValue, item.key);
+        }
+      });
+      console.warn(
+        `[Config] Auto-repaired ${corrupted.length} corrupted value(s): ${corrupted.map((c) => c.key).join(", ")}`
+      );
+    } catch (error) {
+      console.error("[Config] Failed to auto-repair:", error.message);
+    }
+  }
+
+  // Mask sensitive values — never send passwords to the frontend
+  for (const key of SENSITIVE_KEYS) {
+    if (config[key] && config[key].length > 0) {
+      config[key] = SENSITIVE_PLACEHOLDER;
     }
   }
 
@@ -161,14 +235,14 @@ export function getAll() {
 }
 
 /**
- * Get a single configuration value
+ * Get a single configuration value with validation.
+ * Returns default if value is corrupted.
  * @param {string} key - Configuration key
  * @returns {string|number|null} Configuration value or null
  */
 export function get(key) {
   const row = queryOne("SELECT value FROM configuration WHERE key = ?", [key]);
   if (!row) {
-    // Return default if exists
     if (DEFAULT_CONFIG[key] !== undefined) {
       return NUMERIC_KEYS.includes(key)
         ? parseFloat(DEFAULT_CONFIG[key])
@@ -177,7 +251,23 @@ export function get(key) {
     return null;
   }
 
-  return NUMERIC_KEYS.includes(key) ? parseFloat(row.value) : row.value;
+  if (NUMERIC_KEYS.includes(key)) {
+    if (isValidNumericConfig(key, row.value)) {
+      return parseFloat(row.value);
+    }
+    console.warn(`[Config] Corrupted value for '${key}': '${row.value}'. Returning default.`);
+    return parseFloat(DEFAULT_CONFIG[key]);
+  }
+
+  if (EMAIL_KEYS.includes(key)) {
+    if (isValidEmail(row.value)) {
+      return row.value;
+    }
+    console.warn(`[Config] Corrupted email for '${key}': '${row.value}'. Returning default.`);
+    return DEFAULT_CONFIG[key];
+  }
+
+  return row.value;
 }
 
 /**
@@ -191,8 +281,14 @@ export function get(key) {
  * @throws {DatabaseError} If database operation fails
  */
 export function update(updates) {
+  // Strip password placeholder values — user didn't change them
+  for (const key of SENSITIVE_KEYS) {
+    if (updates[key] === SENSITIVE_PLACEHOLDER) {
+      delete updates[key];
+    }
+  }
+
   // Phase 1: Validate ALL updates BEFORE starting transaction
-  // This ensures we fail fast on invalid data without touching the database
   for (const [key, value] of Object.entries(updates)) {
     // Check if key is valid (reject unknown keys)
     if (DEFAULT_CONFIG[key] === undefined) {
@@ -200,9 +296,14 @@ export function update(updates) {
       throw new ValidationError(errorInfo.message, errorInfo.field, errorInfo.details);
     }
 
-    // Validate numeric values
+    // Validate numeric values with range checks
     if (NUMERIC_KEYS.includes(key)) {
-      if (!isPositiveNumber(value)) {
+      if (!isValidNumericConfig(key, value)) {
+        const range = NUMERIC_RANGES[key];
+        if (range) {
+          const errorInfo = ConfigErrors.numericOutOfRange(key, value, range.min, range.max);
+          throw new ValidationError(errorInfo.message, errorInfo.field, errorInfo.details);
+        }
         const errorInfo = ConfigErrors.numericInvalid(key, value, "203.00");
         throw new ValidationError(errorInfo.message, errorInfo.field, errorInfo.details);
       }
@@ -262,6 +363,7 @@ export default {
   ensureDefaults,
   isValidEmail,
   isPositiveNumber,
+  isValidNumericConfig,
   DEFAULT_CONFIG,
   ConfigValidationError,
 };

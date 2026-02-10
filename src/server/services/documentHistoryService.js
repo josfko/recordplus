@@ -2,6 +2,7 @@
  * Document History Service
  * Manages document generation records for cases
  */
+import { existsSync, unlinkSync } from "node:fs";
 import { execute, queryOne, query } from "../database.js";
 
 export class DocumentHistoryService {
@@ -94,9 +95,8 @@ export class DocumentHistoryService {
     // Delete the physical file if requested and it exists
     if (deleteFile && doc.file_path) {
       try {
-        const fs = require("fs");
-        if (fs.existsSync(doc.file_path)) {
-          fs.unlinkSync(doc.file_path);
+        if (existsSync(doc.file_path)) {
+          unlinkSync(doc.file_path);
         }
       } catch (err) {
         console.error(`Error deleting file ${doc.file_path}:`, err);
