@@ -608,6 +608,38 @@ class ApiClient {
     return this.request(`/backup/${filename}`, { method: "DELETE" });
   }
 
+  // ==================== CSV Export API ====================
+
+  /**
+   * Get CSV export system status
+   */
+  async getCsvExportStatus() {
+    return this.request("/csv-export/status");
+  }
+
+  /**
+   * Generate CSV export (creates CSVs + ZIP)
+   */
+  async generateCsvExport() {
+    return this.request("/csv-export/generate", { method: "POST" });
+  }
+
+  /**
+   * Get download URL for a CSV ZIP file
+   * @param {string} filename - ZIP filename
+   * @returns {string} Download URL
+   */
+  getCsvExportDownloadUrl(filename) {
+    return `${this.baseUrl}/csv-export/download/${filename}`;
+  }
+
+  /**
+   * List individual CSV files in the export directory
+   */
+  async listCsvFiles() {
+    return this.request("/csv-export/files");
+  }
+
   // ==================== Health Check ====================
 
   /**
