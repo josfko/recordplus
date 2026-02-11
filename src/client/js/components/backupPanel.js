@@ -12,21 +12,19 @@ export class BackupPanelView {
     this.status = null;
     this.backups = [];
     this.isCreating = false;
-    this.csvStatus = null;
     this.isExportingCsv = false;
+    this.lastCsvExport = null;
   }
 
   async render() {
     try {
       // Load data in parallel
-      const [statusRes, backupsRes, csvStatusRes] = await Promise.all([
+      const [statusRes, backupsRes] = await Promise.all([
         api.getBackupStatus(),
         api.listBackups(),
-        api.getCsvExportStatus().catch(() => ({ data: null })),
       ]);
       this.status = statusRes.data;
       this.backups = backupsRes.data;
-      this.csvStatus = csvStatusRes.data;
 
       this.container.innerHTML = this.template();
       this.bindEvents();
@@ -198,77 +196,30 @@ export class BackupPanelView {
   }
 
   renderCsvExportSection() {
-    const lastExport = this.csvStatus?.lastExport;
-    const lastExportText = lastExport
-      ? this.formatRelativeTime(lastExport)
-      : "Nunca";
-    const csvFiles = this.csvStatus?.csvFiles || [];
-    const zipFiles = this.csvStatus?.zipFiles || [];
-    const latestZip = zipFiles.length > 0 ? zipFiles[0] : null;
+    const lastExportText = this.lastCsvExport
+      ? `${this.lastCsvExport.rows} expedientes exportados`
+      : "";
 
     return `
       <div class="csv-export-section">
         <div class="csv-export-header">
           <div>
             <h3>Exportacion CSV</h3>
-            <span class="csv-export-subtitle">Archivos CSV para Excel/Numbers y sincronizacion con Syncthing</span>
+            <span class="csv-export-subtitle">Descarga todos los expedientes en formato CSV para Excel/Numbers</span>
           </div>
-          <span class="csv-export-last-time">Ultima exportacion: ${lastExportText}</span>
         </div>
 
         <div class="csv-export-actions">
-          <button id="generate-csv-btn" class="btn btn-primary" ${this.isExportingCsv ? "disabled" : ""}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <polyline points="10 9 9 9 8 9"/>
-            </svg>
-            ${this.isExportingCsv ? "Exportando..." : "Exportar CSV"}
-          </button>
-          ${latestZip ? `
-          <button id="download-csv-zip-btn" class="btn btn-secondary" data-filename="${latestZip.filename}">
+          <button id="export-csv-btn" class="btn btn-primary" ${this.isExportingCsv ? "disabled" : ""}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Descargar ZIP (${latestZip.sizeFormatted})
+            ${this.isExportingCsv ? "Exportando..." : "Descargar Expedientes CSV"}
           </button>
-          ` : ""}
+          ${lastExportText ? `<span class="csv-export-last-time">${lastExportText}</span>` : ""}
         </div>
-
-        ${csvFiles.length > 0 ? this.renderCsvFileTable(csvFiles) : ""}
-      </div>
-    `;
-  }
-
-  renderCsvFileTable(csvFiles) {
-    return `
-      <div class="csv-files-list data-table-container">
-        <div class="backup-list-header">
-          <h4>Archivos CSV generados</h4>
-          <span class="backup-count">${csvFiles.length} archivo${csvFiles.length !== 1 ? "s" : ""}</span>
-        </div>
-        <table class="data-table csv-table">
-          <thead>
-            <tr>
-              <th>Archivo</th>
-              <th>Tamano</th>
-              <th>Modificado</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${csvFiles.map((f) => `
-              <tr>
-                <td><span class="backup-filename">${f.filename}</span></td>
-                <td><span class="backup-size">${f.sizeFormatted}</span></td>
-                <td><span class="backup-date">${this.formatDate(f.modifiedAt)}</span></td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
       </div>
     `;
   }
@@ -296,18 +247,10 @@ export class BackupPanelView {
       });
     });
 
-    // CSV Export buttons
-    const csvBtn = this.container.querySelector("#generate-csv-btn");
+    // CSV Export button
+    const csvBtn = this.container.querySelector("#export-csv-btn");
     if (csvBtn) {
-      csvBtn.addEventListener("click", () => this.generateCsvExport());
-    }
-
-    const csvZipBtn = this.container.querySelector("#download-csv-zip-btn");
-    if (csvZipBtn) {
-      csvZipBtn.addEventListener("click", (e) => {
-        const filename = e.currentTarget.dataset.filename;
-        this.downloadCsvZip(filename);
-      });
+      csvBtn.addEventListener("click", () => this.exportCsv());
     }
   }
 
@@ -370,11 +313,11 @@ export class BackupPanelView {
     }
   }
 
-  async generateCsvExport() {
+  async exportCsv() {
     if (this.isExportingCsv) return;
 
     this.isExportingCsv = true;
-    const btn = this.container.querySelector("#generate-csv-btn");
+    const btn = this.container.querySelector("#export-csv-btn");
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = `
@@ -386,37 +329,27 @@ export class BackupPanelView {
     }
 
     try {
-      await api.generateCsvExport();
-      showToast("Exportacion CSV generada correctamente", "success");
+      // Generate (writes to Syncthing dir) and get row count
+      const result = await api.generateCsvExport();
+      this.lastCsvExport = result.data;
+
+      // Trigger direct CSV download
+      const url = api.getCsvDownloadUrl();
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "expedientes.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      showToast(`${result.data.rows} expedientes exportados`, "success");
+      this.isExportingCsv = false;
       await this.render();
     } catch (error) {
       showToast(error.message || "Error al exportar CSV", "error");
       this.isExportingCsv = false;
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10 9 9 9 8 9"/>
-          </svg>
-          Exportar CSV
-        `;
-      }
+      await this.render();
     }
-  }
-
-  downloadCsvZip(filename) {
-    const url = api.getCsvExportDownloadUrl(filename);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showToast("Descargando archivo ZIP...", "success");
   }
 
   formatDate(isoString) {

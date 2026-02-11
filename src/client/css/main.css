@@ -6114,12 +6114,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-top: 1px solid var(--border-subtle);
 }
 
-.csv-export-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
 .csv-export-header h3 {
   font-size: 14px;
   font-weight: 600;
@@ -6132,54 +6126,19 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   color: var(--text-dimmed);
 }
 
-.csv-export-last-time {
-  font-size: 11px;
-  color: var(--text-placeholder);
-  white-space: nowrap;
-}
-
 .csv-export-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .csv-export-actions .btn svg {
   margin-right: 6px;
 }
 
-.csv-files-list {
-  overflow: hidden;
-}
-
-.csv-files-list h4 {
+.csv-export-last-time {
   font-size: 12px;
-  font-weight: 600;
   color: var(--text-dimmed);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.csv-table {
-  width: 100%;
-}
-
-.csv-table th {
-  padding: 10px 20px;
-  text-align: left;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-dimmed);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.csv-table td {
-  padding: 10px 20px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.csv-table tr:hover td {
-  background: var(--bg-hover-subtle);
 }
 
 /* ==================== Theme-aware utility classes (Phase 3) ==================== */

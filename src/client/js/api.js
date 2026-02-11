@@ -611,33 +611,18 @@ class ApiClient {
   // ==================== CSV Export API ====================
 
   /**
-   * Get CSV export system status
-   */
-  async getCsvExportStatus() {
-    return this.request("/csv-export/status");
-  }
-
-  /**
-   * Generate CSV export (creates CSVs + ZIP)
+   * Generate expedientes CSV (writes to Syncthing dir, returns row count)
    */
   async generateCsvExport() {
     return this.request("/csv-export/generate", { method: "POST" });
   }
 
   /**
-   * Get download URL for a CSV ZIP file
-   * @param {string} filename - ZIP filename
+   * Get direct download URL for expedientes CSV
    * @returns {string} Download URL
    */
-  getCsvExportDownloadUrl(filename) {
-    return `${this.baseUrl}/csv-export/download/${filename}`;
-  }
-
-  /**
-   * List individual CSV files in the export directory
-   */
-  async listCsvFiles() {
-    return this.request("/csv-export/files");
+  getCsvDownloadUrl() {
+    return `${this.baseUrl}/csv-export/download`;
   }
 
   // ==================== Health Check ====================
