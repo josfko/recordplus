@@ -4569,6 +4569,153 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 /* Stats grid uses minimum widths and horizontal scroll for narrow viewports */
 /* Keeping .stats-table overflow-x: auto behavior by default */
 
+/* ==================== Statistics Selects & Export Group ==================== */
+
+.stats-year-select,
+.stats-type-select {
+  padding: 7px 13px;
+  background: var(--stats-date-picker-bg);
+  border: 1px solid var(--stats-date-picker-border);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23a1a1aa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+.stats-year-select:hover,
+.stats-type-select:hover {
+  background-color: var(--stats-date-picker-hover);
+}
+
+.stats-export-group {
+  display: flex;
+  gap: 8px;
+}
+
+/* ==================== Stacked Bar Chart ==================== */
+
+.stats-bar-stacked {
+  width: 100%;
+  max-width: 40px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 3px 3px 0 0;
+  position: relative;
+  transition: all 0.3s;
+  overflow: hidden;
+  min-height: 2px;
+}
+
+.stats-bar-stacked:hover .stats-bar-tooltip {
+  opacity: 1;
+}
+
+.stats-bar-stacked-current {
+  box-shadow: var(--stats-bar-current-shadow);
+}
+
+.stats-bar-segment {
+  width: 100%;
+  transition: height 0.5s ease;
+}
+
+.stats-bar-arag {
+  background: var(--color-yellow-500);
+}
+
+.stats-bar-particular {
+  background: var(--color-indigo-500);
+}
+
+.stats-bar-turno {
+  background: var(--color-zinc-500);
+}
+
+/* ==================== Chart Legend ==================== */
+
+.stats-chart-legend {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.stats-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.stats-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ==================== Distribution Total ==================== */
+
+.stats-distribution-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--spacing-4);
+  margin-top: var(--spacing-4);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+/* ==================== Year-over-Year Comparison ==================== */
+
+.stats-yoy-card {
+  width: 100%;
+}
+
+.stats-yoy-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 160px;
+  padding: 0 8px;
+  margin-top: var(--spacing-6);
+}
+
+.stats-yoy-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.stats-yoy-bars {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 2px;
+}
+
+.stats-yoy-bar {
+  width: 10px;
+  border-radius: 2px 2px 0 0;
+  transition: height 0.5s ease;
+  min-height: 2px;
+}
+
 /* ==================== Additional Facturacion Timeline Styles ==================== */
 
 /* Timeline dot colors */

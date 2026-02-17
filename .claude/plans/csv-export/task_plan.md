@@ -1,51 +1,49 @@
-# CSV Export + Syncthing Integration for Record+
+# Task Plan: Simplify CSV Export to Expedientes Only
+
+## Goal
+Strip the CSV export feature down to a single `expedientes.csv` file — no ZIP, no multi-table export, no file listing table. One button, one CSV download with all case data.
+
+## Current Phase
+Complete
 
 ## Phases
 
-### Phase 1: Backend Service [COMPLETE]
-- [x] Create `csvExportService.js` with CSV formatting, table export, ZIP creation
-- [x] Create `csvExport.js` route with 4 endpoints
-- [x] Register route in `index.js`
+### Phase 1: Simplify Backend Service
+- [x] Rewrite `csvExportService.js` — 405 lines → 115 lines
+- [x] Keep only: `formatCsvValue()`, `tableToCsv()`, `generateExpedientesCsv()`, `getExpedientesCsvPath()`
+- [x] Removed: `exportAllCsv()`, `createCsvZip()`, `getZipPath()`, `listCsvFiles()`, `getCsvExportStatus()`, SENSITIVE_KEYS, ZIP logic
+- **Status:** complete
 
-### Phase 2: Frontend Integration [COMPLETE]
-- [x] Add API methods to `api.js`
-- [x] Add CSV export section to `backupPanel.js`
-- [x] Add minimal CSS styles
+### Phase 2: Simplify Route
+- [x] Rewrite `csvExport.js` — 2 endpoints: `POST /generate` + `GET /download`
+- [x] `POST /generate` — generates CSV, writes to Syncthing dir, returns `{ rows, exportedAt }`
+- [x] `GET /download` — generates fresh CSV, streams directly with Content-Disposition header
+- **Status:** complete
 
-### Phase 3: Configuration & Deploy Prep [COMPLETE]
-- [x] Update `ecosystem.config.cjs` with CSV_EXPORT_DIR
-- [x] Test locally end-to-end
+### Phase 3: Simplify Frontend
+- [x] `api.js` — 2 methods: `generateCsvExport()` + `getCsvDownloadUrl()`
+- [x] `backupPanel.js` — single "Descargar Expedientes CSV" button, shows row count after export
+- [x] Removed: ZIP button, file listing table, status API call
+- [x] CSS — removed file listing table styles
+- **Status:** complete
 
-### Phase 4: Verification [COMPLETE]
-- [x] Unit test `formatCsvValue()` — 10/10 passed
-- [x] Verify UTF-8 BOM present in generated CSVs
-- [x] Verify all 4 API endpoints return correct responses
-- [x] Verify ZIP download produces valid archive with 5 CSV files
-- [x] Verify sensitive config values excluded from export
-- [x] Verify path traversal protection
+### Phase 4: Verify
+- [x] `POST /generate` returns `{ rows: 0, exportedAt }` (0 because local DB has no cases)
+- [x] `GET /download` returns CSV with UTF-8 BOM (EF BB BF) and correct Spanish headers
+- [x] Syncthing dir `./data/csv-export/expedientes.csv` updated on generate
+- [x] Chrome extension disconnected — browser test pending for user
+- **Status:** complete
 
-## Decisions
-- **Spanish column headers** in CSV files for Excel readability
-- **Manual export only** — no auto-triggers on case mutations
-- **No external CSV library** — RFC 4180 is simple enough to implement manually
-- **ZIP via CLI** (`zip -j`) — consistent with existing `backupService.js` pattern
-- **Sensitive config excluded** — `smtp_password`, `certificate_password` filtered out entirely
+## Decisions Made
+| Decision | Rationale |
+|----------|-----------|
+| Single CSV, no ZIP | Only 1 file — ZIP wrapping adds complexity for no benefit |
+| Direct CSV download | Browser downloads `expedientes.csv` directly, opens in Excel immediately |
+| Keep Syncthing write | Still writes to `CSV_EXPORT_DIR` for device sync |
+| Remove file listing from UI | Only 1 file — no need for a table listing it |
+| Remove status endpoint | Overkill for single file — just show last export time from generate response |
 
-## Files Created
-| File | Description |
-|------|-------------|
-| `src/server/services/csvExportService.js` | Core CSV generation, file writing, ZIP creation |
-| `src/server/routes/csvExport.js` | 4 API endpoints: status, generate, download, list files |
-
-## Files Modified
-| File | Change |
-|------|--------|
-| `src/server/index.js` | Added import + `app.use("/api/csv-export", csvExportRouter)` |
-| `src/client/js/api.js` | Added 4 CSV export methods to ApiClient |
-| `src/client/js/components/backupPanel.js` | Added "Exportacion CSV" section below existing backup UI |
-| `src/client/css/main.css` | Added CSS styles for CSV export section |
-| `ecosystem.config.cjs` | Added `CSV_EXPORT_DIR` env var for production + development |
-
-## Post-Deploy (Manual)
-- On VPS: Configure Syncthing to share `/home/appuser/data/csv-export/` with user's devices
-- Syncthing watches the directory and syncs changes automatically when CSVs are regenerated
+## Errors Encountered
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| (none yet) | | |

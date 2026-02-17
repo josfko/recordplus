@@ -1,34 +1,36 @@
-# Findings — CSV Export Research
+# Findings — CSV Export Simplification
 
-## Existing Infrastructure
-- JSON export exists at `POST /api/export` (exportImportService.js) — queries all 5 tables
-- Backup system uses `sqlite3 .backup` CLI via execSync (backupService.js)
-- BackupPanel UI has stats cards, create/download/delete buttons
-- Database: better-sqlite3 singleton with WAL mode
+## Requirements
+- Export ONLY the `cases` table (expedientes) as a single CSV
+- Spanish column headers for Excel readability
+- UTF-8 BOM so Excel detects encoding
+- Direct CSV download (no ZIP)
+- Still write to Syncthing directory for device sync
+- Remove all other tables (document_history, email_history, configuration, reference_counters)
 
-## Database Tables for Export
-1. **cases** (16 cols) — primary export target
-2. **document_history** (7 cols) — document generation audit trail
-3. **email_history** (9 cols) — email delivery tracking
-4. **configuration** (3 cols) — key/value settings (filter passwords!)
-5. **reference_counters** (3 cols) — internal counter state
+## Current State (what exists)
+- `csvExportService.js`: 405 lines, exports 5 tables, creates ZIP, manages export dir
+- `csvExport.js` route: 4 endpoints (status, generate, download, files)
+- `api.js`: 4 methods (getCsvExportStatus, generateCsvExport, getCsvExportDownloadUrl, listCsvFiles)
+- `backupPanel.js`: CSV section with generate button, ZIP download button, file listing table
+- Downloaded `expedientes.csv` has correct headers but 0 rows (local DB has no cases — production VPS does)
 
-## Patterns Followed
-- Route registration: `app.use("/api/csv-export", csvExportRouter)` after backup route in index.js
-- Service pattern: matches backupService.js (directory management, execSync for CLI tools)
-- API client: methods on ApiClient class in api.js
-- Frontend: extended existing backupPanel.js component
-- Error class: `CsvExportError` matching `BackupError` pattern
-- Security: filename validation regex + path traversal check (matching `getBackupPath`)
+## What to Remove
+- TABLE_CONFIGS entries: `document_history`, `email_history`, `configuration`, `reference_counters`
+- SENSITIVE_KEYS filter (no config table = no passwords to filter)
+- ZIP creation logic (`createCsvZip()`, `getZipPath()`, `execSync` zip command)
+- `getCsvExportStatus()`, `listCsvFiles()` functions
+- Route endpoints: `/status`, `/files`, `/download/:filename`
+- Frontend: ZIP button, file listing table, status API call
 
-## CSV Technical Notes
-- UTF-8 BOM (`\uFEFF` = bytes `EF BB BF`) required for Excel to read Spanish characters
-- RFC 4180: comma delimiter, `\r\n` line endings, double-quote escaping
-- `zip -j` available on both macOS and Ubuntu 22.04
-- Initial bug: ZIP command used full path inside `cd` context — fixed to use just filename
+## What to Keep
+- `formatCsvValue()` — RFC 4180 escaping (working correctly)
+- `tableToCsv()` — BOM + headers + rows (working correctly)
+- `CSV_EXPORT_DIR` — still needed for Syncthing
+- Cases table Spanish headers (already correct)
+- `CsvExportError` class
 
-## Security Considerations
-- `smtp_password` and `certificate_password` filtered from configuration CSV
-- ZIP filename validated with strict regex: `/^recordplus-csv-\d{8}-\d{6}\.zip$/`
-- Path traversal protection via `resolve()` + `startsWith()` check
-- Old ZIP files cleaned up on each generation (only latest kept)
+## Technical Notes
+- Download endpoint should set `Content-Disposition: attachment; filename="expedientes.csv"` and `Content-Type: text/csv; charset=utf-8`
+- No need for file-on-disk for download — can generate CSV in memory and stream it
+- But still write to disk for Syncthing sync
