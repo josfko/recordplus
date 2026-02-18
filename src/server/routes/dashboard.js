@@ -3,6 +3,7 @@
 
 import { Router } from "express";
 import { getDashboardMetrics } from "../services/dashboardService.js";
+import { getNotifications } from "../services/notificationService.js";
 
 const router = Router();
 
@@ -46,6 +47,19 @@ router.get("/", (req, res, next) => {
 
     const metrics = getDashboardMetrics(parsedMonth, parsedYear);
     res.json(metrics);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/dashboard/notifications
+ * Get live-computed notifications from existing data
+ */
+router.get("/notifications", (req, res, next) => {
+  try {
+    const result = getNotifications();
+    res.json(result);
   } catch (error) {
     next(error);
   }

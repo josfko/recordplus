@@ -336,6 +336,7 @@
   --amber-text-glow: 0 0 8px rgba(251, 191, 36, 0.35);
   --amber-text-glow-strong: 0 0 10px rgba(251, 191, 36, 0.4);
   --status-amber-bg: rgba(251, 191, 36, 0.12);
+  --status-amber-text: var(--color-amber-100);
   --status-amber-text-glow: 0 0 8px rgba(251, 191, 36, 0.3);
 
   /* Accent: Cyan */
@@ -705,6 +706,7 @@
   --amber-text-glow: none;
   --amber-text-glow-strong: none;
   --status-amber-bg: rgba(245, 158, 11, 0.08);
+  --status-amber-text: #b45309;
   --status-amber-text-glow: none;
   --filter-tab-amber-active-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(234, 179, 8, 0.05) 100%);
   --filter-tab-amber-active-border: rgba(245, 158, 11, 0.3);

@@ -109,7 +109,7 @@ export class CaseListView {
               ${this.renderSortableHeader('Tipo', 'type')}
               ${this.renderSortableHeader('Estado', 'state')}
               ${this.renderSortableHeader('Entrada', 'entry_date')}
-              <th>Acciones</th>
+              <th>Docs</th>
             </tr>
           </thead>
           <tbody id="cases-tbody">
@@ -187,20 +187,30 @@ export class CaseListView {
           <td><span class="cell-state ${stateClass}">${stateDisplay}</span></td>
           <td><span class="cell-date">${formatDate(c.entryDate)}</span></td>
           <td>
-            <div class="cell-actions">
-              <button class="btn-action" title="Ver" data-action="view" data-id="${
-                c.id
-              }">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M6 12l4-4-4-4"/>
-                </svg>
-              </button>
+            <div class="cell-doc-status">
+              ${this.renderDocStatus(c)}
             </div>
           </td>
         </tr>
       `;
       })
       .join("");
+  }
+
+  renderDocStatus(c) {
+    if (c.type === "ARAG") {
+      const minutaDone = c.minutaCount > 0;
+      const suplidoDone = c.suplidoCount > 0;
+      return `
+        <span class="doc-pill ${minutaDone ? "doc-pill-arag" : "doc-pill-pending"}" title="${minutaDone ? "Minuta generada" : "Minuta pendiente"}">Minuta</span>
+        ${suplidoDone ? '<span class="doc-pill doc-pill-arag" title="Suplido generado">Suplido</span>' : ""}
+      `;
+    }
+    if (c.type === "PARTICULAR") {
+      const hojaDone = c.hojaCount > 0;
+      return `<span class="doc-pill ${hojaDone ? "doc-pill-particular" : "doc-pill-pending"}" title="${hojaDone ? "Hoja de Encargo generada" : "Hoja de Encargo pendiente"}">HdE</span>`;
+    }
+    return '<span class="doc-pill-empty">—</span>';
   }
 
   renderSortableHeader(label, column) {
@@ -291,20 +301,10 @@ export class CaseListView {
   bindRowEvents() {
     this.container.querySelectorAll("tr[data-case-id]").forEach((row) => {
       row.style.cursor = "pointer";
-      row.addEventListener("click", (e) => {
-        if (!e.target.closest(".btn-action")) {
-          router.navigate(`/cases/${row.dataset.caseId}`);
-        }
+      row.addEventListener("click", () => {
+        router.navigate(`/cases/${row.dataset.caseId}`);
       });
     });
-
-    this.container
-      .querySelectorAll('.btn-action[data-action="view"]')
-      .forEach((btn) => {
-        btn.addEventListener("click", () =>
-          router.navigate(`/cases/${btn.dataset.id}`)
-        );
-      });
   }
 
   async refresh() {

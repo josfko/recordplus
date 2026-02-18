@@ -7,6 +7,9 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 
+# Generated CSV exports
+data/csv-export/
+
 # Generated documents (PDFs)
 data/documents/*
 !data/documents/.gitkeep

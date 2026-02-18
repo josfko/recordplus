@@ -6,6 +6,7 @@
 import { api } from "../api.js";
 import { router } from "../router.js";
 import { formatDate, showToast } from "../app.js";
+import { notificationCenter } from "./notificationCenter.js";
 
 export class DashboardView {
   constructor(container) {
@@ -69,12 +70,12 @@ export class DashboardView {
           <p>Resumen mensual y gestión rápida.</p>
         </div>
         <div class="header-actions">
-          <button class="btn btn-icon" title="Notificaciones">
+          <button class="btn btn-icon" title="Notificaciones" id="notifications-bell">
             <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M13.5 6.75a4.5 4.5 0 1 0-9 0c0 5.25-2.25 6.75-2.25 6.75h13.5s-2.25-1.5-2.25-6.75"/>
               <path d="M10.3 15a1.5 1.5 0 0 1-2.6 0"/>
             </svg>
-            <span class="notification-dot"></span>
+            <span class="notification-dot" style="display:none"></span>
           </button>
           <a href="#/cases/new" class="btn btn-primary">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2">
@@ -171,7 +172,7 @@ export class DashboardView {
               <th>Tipo</th>
               <th>Estado</th>
               <th>Entrada</th>
-              <th>Acciones</th>
+              <th>Docs</th>
             </tr>
           </thead>
           <tbody id="cases-tbody">
@@ -247,8 +248,8 @@ export class DashboardView {
         : `Judicial${judicialDistrict ? ` (${judicialDistrict})` : ""}`;
     const stateClass = state === "JUDICIAL" ? "judicial" : "";
 
-    // Action buttons based on type
-    const actions = this.getActionButtons(caseData);
+    // Document status indicator
+    const docStatus = this.renderDocStatus(caseData);
 
     return `
       <tr data-case-id="${id}">
@@ -268,43 +269,44 @@ export class DashboardView {
         <td><span class="cell-state ${stateClass}">${stateDisplay}</span></td>
         <td><span class="cell-date">${formatDate(entryDate)}</span></td>
         <td>
-          <div class="cell-actions">
-            ${actions}
+          <div class="cell-doc-status">
+            ${docStatus}
           </div>
         </td>
       </tr>
     `;
   }
 
-  getActionButtons(caseData) {
-    const { id, type, state } = caseData;
-    let buttons = "";
-
-    // Document generation button (ARAG and PARTICULAR only, not archived)
-    if (state !== "ARCHIVADO" && (type === "ARAG" || type === "PARTICULAR")) {
-      buttons += `
-        <button class="btn-action" title="Generar documento" data-action="document" data-id="${id}">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M4 2h5l4 4v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/>
-            <path d="M9 2v4h4"/>
-          </svg>
-        </button>
+  renderDocStatus(caseData) {
+    const { type, minutaCount = 0, suplidoCount = 0, hojaCount = 0 } = caseData;
+    if (type === "ARAG") {
+      const minutaDone = minutaCount > 0;
+      const suplidoDone = suplidoCount > 0;
+      return `
+        <span class="doc-pill ${minutaDone ? "doc-pill-arag" : "doc-pill-pending"}" title="${minutaDone ? "Minuta generada" : "Minuta pendiente"}">Minuta</span>
+        ${suplidoDone ? '<span class="doc-pill doc-pill-arag" title="Suplido generado">Suplido</span>' : ""}
       `;
     }
-
-    // View/Edit button
-    buttons += `
-      <button class="btn-action" title="Ver expediente" data-action="view" data-id="${id}">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M6 12l4-4-4-4"/>
-        </svg>
-      </button>
-    `;
-
-    return buttons;
+    if (type === "PARTICULAR") {
+      const hojaDone = hojaCount > 0;
+      return `<span class="doc-pill ${hojaDone ? "doc-pill-particular" : "doc-pill-pending"}" title="${hojaDone ? "Hoja de Encargo generada" : "Hoja de Encargo pendiente"}">HdE</span>`;
+    }
+    return '<span class="doc-pill-empty">—</span>';
   }
 
   bindEvents() {
+    // Notification bell
+    const bellBtn = this.container.querySelector("#notifications-bell");
+    if (bellBtn) {
+      bellBtn.addEventListener("click", () => {
+        notificationCenter.toggle(bellBtn);
+      });
+      // Fetch notification count and update badge
+      notificationCenter.fetchCount().then(() => {
+        notificationCenter.updateBadge(bellBtn);
+      });
+    }
+
     // Filter tabs
     this.container.querySelectorAll(".filter-tab").forEach((tab) => {
       tab.addEventListener("click", (e) => {
@@ -324,22 +326,11 @@ export class DashboardView {
       }, 300);
     });
 
-    // Action buttons
-    this.container.querySelectorAll(".btn-action").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const action = e.currentTarget.dataset.action;
-        const id = e.currentTarget.dataset.id;
-        this.handleAction(action, id);
-      });
-    });
-
     // Row click to view
     this.container.querySelectorAll("tr[data-case-id]").forEach((row) => {
-      row.addEventListener("click", (e) => {
-        if (!e.target.closest(".btn-action")) {
-          const id = row.dataset.caseId;
-          router.navigate(`/cases/${id}`);
-        }
+      row.addEventListener("click", () => {
+        const id = row.dataset.caseId;
+        router.navigate(`/cases/${id}`);
       });
       row.style.cursor = "pointer";
     });
@@ -384,36 +375,13 @@ export class DashboardView {
   }
 
   bindRowEvents() {
-    this.container.querySelectorAll(".btn-action").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const action = e.currentTarget.dataset.action;
-        const id = e.currentTarget.dataset.id;
-        this.handleAction(action, id);
-      });
-    });
-
     this.container.querySelectorAll("tr[data-case-id]").forEach((row) => {
-      row.addEventListener("click", (e) => {
-        if (!e.target.closest(".btn-action")) {
-          const id = row.dataset.caseId;
-          router.navigate(`/cases/${id}`);
-        }
+      row.addEventListener("click", () => {
+        const id = row.dataset.caseId;
+        router.navigate(`/cases/${id}`);
       });
       row.style.cursor = "pointer";
     });
-  }
-
-  handleAction(action, id) {
-    switch (action) {
-      case "view":
-        router.navigate(`/cases/${id}`);
-        break;
-      case "document":
-        showToast("Generación de documentos próximamente", "info");
-        break;
-      default:
-        console.log("Unknown action:", action);
-    }
   }
 }
 

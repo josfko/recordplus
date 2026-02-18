@@ -318,10 +318,14 @@ export function list(filters = {}, pagination = {}, sort = {}) {
   );
   const total = countResult?.total || 0;
 
-  // Get paginated results
+  // Get paginated results with document counts
   const offset = (page - 1) * pageSize;
   const rows = query(
-    `SELECT * FROM cases ${whereClause} ${orderByClause} LIMIT ? OFFSET ?`,
+    `SELECT c.*,
+      (SELECT COUNT(*) FROM document_history dh WHERE dh.case_id = c.id AND dh.document_type = 'MINUTA') as minuta_count,
+      (SELECT COUNT(*) FROM document_history dh WHERE dh.case_id = c.id AND dh.document_type = 'SUPLIDO') as suplido_count,
+      (SELECT COUNT(*) FROM document_history dh WHERE dh.case_id = c.id AND dh.document_type = 'HOJA_ENCARGO') as hoja_count
+     FROM cases c ${whereClause} ${orderByClause} LIMIT ? OFFSET ?`,
     [...params, pageSize, offset]
   );
 
@@ -583,7 +587,7 @@ export function deleteCase(id) {
  * @returns {Object} Case object
  */
 function mapRowToCase(row) {
-  return {
+  const mapped = {
     id: row.id,
     type: row.type,
     clientName: row.client_name,
@@ -603,6 +607,15 @@ function mapRowToCase(row) {
     // Language (defaults to 'es' if column doesn't exist yet)
     language: row.language ?? "es",
   };
+
+  // Document counts (only present in list queries, not getById)
+  if (row.minuta_count !== undefined) {
+    mapped.minutaCount = row.minuta_count;
+    mapped.suplidoCount = row.suplido_count;
+    mapped.hojaCount = row.hoja_count;
+  }
+
+  return mapped;
 }
 
 export default {

@@ -105,7 +105,7 @@ export class ParticularesListView {
               <th>Cliente</th>
               <th>Estado</th>
               <th>Fecha Entrada</th>
-              <th>Acciones</th>
+              <th>Docs</th>
             </tr>
           </thead>
           <tbody id="cases-tbody">
@@ -142,8 +142,6 @@ export class ParticularesListView {
           class: "status-gray",
         };
 
-        const canGenerateDoc = c.state !== "ARCHIVADO";
-
         return `
           <tr data-case-id="${c.id}">
             <td><span class="cell-reference mono">${c.internalReference || "-"}</span></td>
@@ -156,24 +154,8 @@ export class ParticularesListView {
             <td><span class="case-status ${state.class}">${state.label}</span></td>
             <td><span class="cell-date">${formatDate(c.entryDate)}</span></td>
             <td>
-              <div class="cell-actions">
-                ${
-                  canGenerateDoc
-                    ? `
-                  <button class="btn-action btn-action-green" title="Hoja de Encargo" data-action="hoja" data-id="${c.id}">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <path d="M13 2H6l-3 3v9a1 1 0 001 1h9a1 1 0 001-1V3a1 1 0 00-1-1z"/>
-                      <path d="M6 2v3H3M9 8v4M7 10h4"/>
-                    </svg>
-                  </button>
-                `
-                    : ""
-                }
-                <button class="btn-action" title="Ver expediente" data-action="view" data-id="${c.id}">
-                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M6 12l4-4-4-4"/>
-                  </svg>
-                </button>
+              <div class="cell-doc-status">
+                <span class="doc-pill ${c.hojaCount > 0 ? "doc-pill-particular" : "doc-pill-pending"}" title="${c.hojaCount > 0 ? "Hoja de Encargo generada" : "Hoja de Encargo pendiente"}">HdE</span>
               </div>
             </td>
           </tr>
@@ -262,35 +244,12 @@ export class ParticularesListView {
   }
 
   bindRowEvents() {
-    // Row clicks navigate to detail
     this.container.querySelectorAll("tr[data-case-id]").forEach((row) => {
       row.style.cursor = "pointer";
-      row.addEventListener("click", (e) => {
-        if (!e.target.closest(".btn-action")) {
-          router.navigate(`/particulares/${row.dataset.caseId}`);
-        }
+      row.addEventListener("click", () => {
+        router.navigate(`/particulares/${row.dataset.caseId}`);
       });
     });
-
-    // View button
-    this.container
-      .querySelectorAll('.btn-action[data-action="view"]')
-      .forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          router.navigate(`/particulares/${btn.dataset.id}`);
-        });
-      });
-
-    // Hoja de Encargo button
-    this.container
-      .querySelectorAll('.btn-action[data-action="hoja"]')
-      .forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          router.navigate(`/particulares/${btn.dataset.id}`);
-        });
-      });
   }
 
   async refresh() {
