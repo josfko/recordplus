@@ -18,6 +18,7 @@ import { ParticularesListView } from "./components/particularesList.js";
 import { TurnoOficioView } from "./components/turnoOficio.js";
 import { TurnoListView } from "./components/turnoList.js";
 import { EstadisticasView } from "./components/estadisticas.js";
+import { GuiaUsuarioView } from "./components/guiaUsuario.js";
 import { themeManager } from "./themeManager.js";
 
 // Toast notification helper
@@ -156,6 +157,11 @@ function initApp() {
 
   router.register("/stats", async () => {
     const view = new EstadisticasView(mainContent);
+    await view.render();
+  });
+
+  router.register("/guia", async () => {
+    const view = new GuiaUsuarioView(mainContent);
     await view.render();
   });
 
